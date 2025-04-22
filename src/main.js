@@ -41,7 +41,7 @@ const D8_COUNT = parseInt(urlParams.get('d8')) || 0;
 const D10_COUNT = parseInt(urlParams.get('d10')) || 0;
 const D12_COUNT = parseInt(urlParams.get('d12')) || 0;
 const D20_COUNT = parseInt(urlParams.get('d20')) || 0;
-const ADD_COUNT = parseInt(urlParams.get('add')) || 0;
+let ADD_COUNT = parseInt(urlParams.get('add')) || 0;
 
 let diceTypeCounts = {
     d6: D6_COUNT,
@@ -63,31 +63,47 @@ const DIE_COLORS = {
     d20: '#F0E442'   // Soft Yellow
 };
 
-function setupWalls(scene, world) {
-    const boundarySize = 30;
+let wallBodies = [];
+let wallMeshes = [];
+
+export function setupWalls(scene, world, extraWidth = 0) {
+    // Clear previous walls
+    for (const body of wallBodies) world.removeBody(body);
+    for (const mesh of wallMeshes) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+    }
+    wallBodies = [];
+    wallMeshes = [];
+
+    const baseSize = 30;
+    const boundarySize = baseSize + extraWidth; // Extend size if needed
 
     function createWall(pos, rot, size, skipVisual = false) {
         const shape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
-        const body = new CANNON.Body({mass: 0, shape, position: pos});
+        const body = new CANNON.Body({ mass: 0, shape, position: pos });
         body.quaternion.setFromEuler(rot.x, rot.y, rot.z);
         world.addBody(body);
+        wallBodies.push(body);
 
         if (!skipVisual) {
             const geo = new THREE.BoxGeometry(size.x, size.y, size.z);
-            const mat = new THREE.MeshStandardMaterial({color: 0x333333});
+            const mat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.copy(pos);
             mesh.rotation.set(rot.x, rot.y, rot.z);
             scene.add(mesh);
+            wallMeshes.push(mesh);
         }
     }
 
-    createWall(new CANNON.Vec3(0, -0.5, 0), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 1, z: boundarySize});
-    createWall(new CANNON.Vec3(0, 10, 0), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 1, z: boundarySize}, true);
-    createWall(new CANNON.Vec3(-boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), {x: 1, y: 10, z: boundarySize});
-    createWall(new CANNON.Vec3(boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), {x: 1, y: 10, z: boundarySize});
-    createWall(new CANNON.Vec3(0, 5, -boundarySize / 2), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 10, z: 1});
-    createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 10, z: 1}, true);
+    createWall(new CANNON.Vec3(0, -0.5, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize });
+    createWall(new CANNON.Vec3(0, 10, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize }, true);
+    createWall(new CANNON.Vec3(-boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
+    createWall(new CANNON.Vec3(boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
+    createWall(new CANNON.Vec3(0, 5, -boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 });
+    createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 }, true);
 }
 
 
@@ -218,10 +234,15 @@ function setupDiePhysics(body) {
 }
 
 function createDiceSet(diceTypeCounts) {
+    const totalDice = Object.values(diceTypeCounts).reduce((sum, n) => sum + n, 0);
+
+    const spawnScale = totalDice <= 40 ? 1 : Math.log2(totalDice / 20 + 1) + 1.5;
+    const spawnRange = 12 * spawnScale;
+    const wallExtra = Math.max(0, Math.floor((spawnScale - 1) * 20));
+
+    setupWalls(scene, world, wallExtra);
     dice.length = 0;
     diceResults = [];
-
-    const spawnRange = 12;
 
     // Get only the active types (non-zero count), in desired order
     let activeTypes = Object.keys(diceTypeCounts)
@@ -245,7 +266,9 @@ function createDiceSet(diceTypeCounts) {
         const count = diceTypeCounts[type];
         const zoneCenter = typeZones[type];
 
-        const spacing = 1.5; // minimum space between dice
+        const baseSpacing = 1.5;
+        const spacing = baseSpacing * (1 + Math.log2(totalDice + 1) * 0.2); // Scales up with more dice
+
         const dicePerRow = Math.ceil(Math.sqrt(count));
         const row = Math.floor(index / dicePerRow);
         const col = index % dicePerRow;
@@ -340,7 +363,47 @@ function checkDiceStopped() {
 
         const total = diceResults.reduce((sum, val) => sum + val, 0) + ADD_COUNT;
 
-        // Pair each die with result and screen position
+        if (diceResults.length > 20) {
+            // 🧮 Bucket by value
+            const buckets = {};
+            dice.forEach((d, i) => {
+                const value = diceResults[i];
+                const key = `${value}`;
+                if (!buckets[key]) buckets[key] = { count: 0, color: DIE_COLORS[d.type] || '#fff' };
+                buckets[key].count++;
+            });
+
+            // 📋 Display bucket labels
+            Object.keys(buckets).sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+                const { count, color } = buckets[key];
+                const label = document.createElement('div');
+                label.className = 'die-label';
+                label.textContent = `${count}×${key}`;
+                label.style.backgroundColor = color;
+                label.style.border = '2px solid white';
+                label.style.color = '#000';
+                labelBar.appendChild(label);
+            });
+
+            // ➕ Bonus
+            if (ADD_COUNT) {
+                const bonusLabel = document.createElement('div');
+                bonusLabel.className = 'die-label';
+                bonusLabel.textContent = `+${ADD_COUNT}`;
+                labelBar.appendChild(bonusLabel);
+            }
+
+            // 🧮 Total
+            const totalLabel = document.createElement('div');
+            totalLabel.className = 'die-label';
+            totalLabel.textContent = `= ${total}`;
+            labelBar.appendChild(totalLabel);
+
+            document.getElementById('result').innerText = '';
+            return; // ✅ Skip lines below!
+        }
+
+        // ELSE: Original display with individual results
         const dieData = dice.map((d, i) => ({
             result: diceResults[i],
             screen: worldToScreenPos(d.mesh.position.clone(), camera),
@@ -348,25 +411,21 @@ function checkDiceStopped() {
             type: d.type
         }));
 
-        // Group dice by result value
         const grouped = {};
         dieData.forEach(d => {
             if (!grouped[d.result]) grouped[d.result] = [];
             grouped[d.result].push(d);
         });
 
-        // Sort each group by screen x-position (left to right)
         Object.values(grouped).forEach(group => {
             group.sort((a, b) => a.screen.x - b.screen.x);
         });
 
-        // Flatten sorted groups back to list, ordered by result value
         const sortedData = Object.keys(grouped)
             .map(Number)
             .sort((a, b) => a - b)
             .flatMap(key => grouped[key]);
 
-        // Display labels in final sorted order
         sortedData.forEach(die => {
             const label = document.createElement('div');
             label.className = 'die-label';
@@ -374,14 +433,13 @@ function checkDiceStopped() {
 
             const color2 = DIE_COLORS[die.type] || '#ffffff';
             label.style.backgroundColor = color2;
-            label.style.border = `2px solid white`; // Optional for contrast
-            label.style.color = '#000'; // Keep text readable
+            label.style.border = `2px solid white`;
+            label.style.color = '#000';
 
             labelBar.appendChild(label);
-            die.label = label; // keep for line drawing
+            die.label = label;
         });
 
-        // ➕ Optional bonus
         if (ADD_COUNT) {
             const bonusLabel = document.createElement('div');
             bonusLabel.className = 'die-label';
@@ -389,17 +447,14 @@ function checkDiceStopped() {
             labelBar.appendChild(bonusLabel);
         }
 
-        // 🧮 Total
         const totalLabel = document.createElement('div');
         totalLabel.className = 'die-label';
         totalLabel.textContent = `= ${total}`;
         labelBar.appendChild(totalLabel);
 
-        document.getElementById('result').innerText = ' ';
+        document.getElementById('result').innerText = '';
 
-        // 📏 Draw lines from labels to dice (skip bonus + total)
         const labelBarRect = labelBar.getBoundingClientRect();
-
         sortedData.forEach(die => {
             const labelRect = die.label.getBoundingClientRect();
             const labelX = labelRect.left + labelRect.width / 2;
@@ -558,6 +613,7 @@ const presets = [
     { label: 'Smite 3', d8: 4, d6: 0, d10:0, d12:0, d20:0 },
     { label: 'Smite 4', d8: 5, d6: 0, d10:0, d12:0, d20:0 },
     { label: 'Max Demo', d8: 10, d6: 10, d10:0, d12:0, d20:0 },
+    { label: '1000', d8: 0, d6: 1000, d10:0, d12:0, d20:0 },
 ];
 
 function setDiceCounts(d20, d12, d10, d8, d6) {
@@ -566,6 +622,7 @@ function setDiceCounts(d20, d12, d10, d8, d6) {
     diceTypeCounts.d10 = d10
     diceTypeCounts.d12 = d12
     diceTypeCounts.d20 = d20
+    ADD_COUNT = 0
     updateUI();
 }
 

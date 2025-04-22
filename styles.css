@@ -241,7 +241,7 @@ canvas {
 }
 
 /* Optional: adjust on smaller screens */
-@media (hover: none) and (pointer: coarse) and (max-width: 767px) {
+@media (max-device-width: 767px) {
     .popup {
         font-size: 25px;
         max-width: 90vw;
