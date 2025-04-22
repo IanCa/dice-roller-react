@@ -1,11 +1,67 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {
+    createNumberedAtlasTexture,
+    createNumberedD8Geometry,
+    createPhysicsD8Shape,
+    getTopFaceIndex
+} from "./d8_code.js";
+import {
+    createNumberedD6AtlasTexture,
+    createNumberedD6Geometry,
+    createPhysicsD6Shape,
+    getTopFaceIndexForD6
+} from "./d6_code.js";
+import {
+    createNumberedD10AtlasTexture,
+    createNumberedD10Geometry,
+    createPhysicsD10Shape,
+    getTopFaceIndexForD10
+} from "./d10_code.js";
+
+import {
+    createNumberedD12AtlasTexture,
+    createNumberedD12Geometry,
+    createPhysicsD12Shape,
+    getTopFaceIndexForD12
+} from "./d12_code.js";
+
+import {
+    createNumberedD20AtlasTexture,
+    createNumberedD20Geometry,
+    createPhysicsD20Shape,
+    getTopFaceIndexForD20
+} from "./d20_code.js";
 
 const urlParams = new URLSearchParams(window.location.search);
-const D8_COUNT = parseInt(urlParams.get('d8')) || 2;
 const D6_COUNT = parseInt(urlParams.get('d6')) || 0;
+const D8_COUNT = parseInt(urlParams.get('d8')) || 0;
+const D10_COUNT = parseInt(urlParams.get('d10')) || 0;
+const D12_COUNT = parseInt(urlParams.get('d12')) || 0;
+const D20_COUNT = parseInt(urlParams.get('d20')) || 0;
 const ADD_COUNT = parseInt(urlParams.get('add')) || 0;
+
+let diceTypeCounts = {
+    d6: D6_COUNT,
+    d8: D8_COUNT,
+    d10: D10_COUNT,
+    d12: D12_COUNT,
+    d20: D20_COUNT
+};
+
+if (Object.values(diceTypeCounts).every(count => count === 0)) {
+    diceTypeCounts.d8 = 2; // default fallback
+}
+
+const DIE_COLORS = {
+    d6:  '#40E0D0',  // Bright Turquoise ✅
+    d8:  '#E69F00',  // Orange-yellow
+    d10: '#56B4E9',  // Sky Blue
+    d12: '#CC79A7',  // Magenta-pink
+    d20: '#F0E442'   // Soft Yellow
+};
 
 function setupWalls(scene, world) {
     const boundarySize = 30;
@@ -34,510 +90,8 @@ function setupWalls(scene, world) {
     createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 10, z: 1}, true);
 }
 
-// D8 creation
-function createNumberedD8Geometry() {
-    const verts = [
-        new THREE.Vector3(1, 0, 0),   // 0
-        new THREE.Vector3(-1, 0, 0),  // 1
-        new THREE.Vector3(0, 1, 0),   // 2
-        new THREE.Vector3(0, -1, 0),  // 3
-        new THREE.Vector3(0, 0, 1),   // 4
-        new THREE.Vector3(0, 0, -1),  // 5
-    ];
 
-    const faces = [
-        [0, 2, 4], // 0
-        [2, 1, 4], // 1
-        [1, 3, 4], // 2
-        [3, 0, 4], // 3
-        [2, 0, 5], // 4
-        [1, 2, 5], // 5
-        [3, 1, 5], // 6
-        [0, 3, 5], // 7
-    ];
 
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const uvs = [];
-
-    const tileWidth = 1 / 8;
-
-    for (let i = 0; i < faces.length; i++) {
-        const [aIdx, bIdx, cIdx] = faces[i];
-        const a = verts[aIdx];
-        const b = verts[bIdx];
-        const c = verts[cIdx];
-
-        // Push vertex positions
-        positions.push(a.x, a.y, a.z);
-        positions.push(b.x, b.y, b.z);
-        positions.push(c.x, c.y, c.z);
-
-        // Face center & tangent space to orient texture
-        const ab = new THREE.Vector3().subVectors(b, a);
-        const ac = new THREE.Vector3().subVectors(c, a);
-        const faceCenter = new THREE.Vector3().addVectors(a, b).add(c).divideScalar(3);
-        const normal = new THREE.Vector3().crossVectors(ab, ac).normalize();
-
-        // Define a consistent "up" vector on each triangle face
-        const faceY = new THREE.Vector3(0, 1, 0);
-        if (Math.abs(normal.dot(faceY)) > 0.99) faceY.set(1, 0, 0); // avoid degenerate
-
-        const xAxis = new THREE.Vector3().crossVectors(faceY, normal).normalize();
-        const yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
-
-        // Map each vertex to 2D space in the face's local UV frame
-        const toUV = (v) => {
-            const p = new THREE.Vector3().subVectors(v, faceCenter);
-            return {
-                u: p.dot(xAxis),
-                v: p.dot(yAxis)
-            };
-        };
-
-        let uvA = toUV(a);
-        let uvB = toUV(b);
-        let uvC = toUV(c);
-
-        // Normalize UVs to triangle coordinates (centered around 0,0)
-        const maxRange = Math.max(
-            Math.abs(uvA.u), Math.abs(uvA.v),
-            Math.abs(uvB.u), Math.abs(uvB.v),
-            Math.abs(uvC.u), Math.abs(uvC.v)
-        ) || 1;
-
-        // Fit into texture tile
-        const tileOffsetU = i * tileWidth;
-
-        const packUV = (uv) => [
-            tileOffsetU + (uv.u / maxRange / 2 + 0.5) * tileWidth,
-            (uv.v / maxRange / 2 + 0.5)
-        ];
-
-        const uprightFaces = [0, 1, 4, 5];
-        const isUpright = uprightFaces.includes(i);
-
-        if (!isUpright) {
-            function rotateUV180(uv) {
-                return {u: -uv.u, v: -uv.v};
-            }
-
-            uvA = rotateUV180(uvA);
-            uvB = rotateUV180(uvB);
-            uvC = rotateUV180(uvC);
-        }
-
-
-        uvs.push(...packUV(uvA));
-        uvs.push(...packUV(uvB));
-        uvs.push(...packUV(uvC));
-    }
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.computeVertexNormals();
-    return geometry;
-}
-
-function createNumberedAtlasTexture() {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 1024;
-    canvas.height = 128;
-
-    for (let i = 0; i < 8; i++) {
-        const x = i * 128;
-        ctx.fillStyle = '#00ffcc';
-        ctx.fillRect(x, 0, 128, 128);
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 64px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText((i + 1).toString(), x + 64, 64);
-    }
-
-    return new THREE.CanvasTexture(canvas);
-}
-
-function createPhysicsD8Shape() {
-    const verts = [
-        new CANNON.Vec3(1.0, 0, 0),
-        new CANNON.Vec3(-1.0, 0, 0),
-        new CANNON.Vec3(0, 1.0, 0),
-        new CANNON.Vec3(0, -1.0, 0),
-        new CANNON.Vec3(0, 0, 1.0),
-        new CANNON.Vec3(0, 0, -1.0),
-    ];
-
-    const faces = [
-        [0, 2, 4],
-        [2, 1, 4],
-        [1, 3, 4],
-        [3, 0, 4],
-        [2, 0, 5],
-        [1, 2, 5],
-        [3, 1, 5],
-        [0, 3, 5],
-    ];
-
-    return new CANNON.ConvexPolyhedron({vertices: verts, faces});
-}
-
-function getTopFaceIndex(quat) {
-    const up = new THREE.Vector3(0, 1, 0);
-    const q = new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w);
-    const position = diceTypes['d8'].geometry.getAttribute('position');
-    const faceNormals = [];
-    for (let i = 0; i < position.count; i += 3) {
-        const a = new THREE.Vector3().fromBufferAttribute(position, i);
-        const b = new THREE.Vector3().fromBufferAttribute(position, i + 1);
-        const c = new THREE.Vector3().fromBufferAttribute(position, i + 2);
-        const cb = new THREE.Vector3().subVectors(c, b);
-        const ab = new THREE.Vector3().subVectors(a, b);
-        const normal = new THREE.Vector3().crossVectors(cb, ab).normalize();
-        faceNormals.push(normal);
-    }
-
-    let maxDot = -1;
-    let best = 0;
-    faceNormals.forEach((n, i) => {
-        const transformed = n.clone().applyQuaternion(q);
-        const dot = transformed.dot(up);
-        if (dot > maxDot) {
-            maxDot = dot;
-            best = i;
-        }
-    });
-
-    return best;
-}
-
-// D6 creation
-function createNumberedD6Geometry() {
-    const tileSize = 1 / 6;
-    const geometry = new THREE.BufferGeometry();
-
-    const positions = [];
-    const uvs = [];
-
-    const faces = [
-        // Front (+Z)
-        { normal: [0, 0, 1], u: [0, 1], v: [1, 1, 0, 0], tile: 0 },
-        // Back (-Z)
-        { normal: [0, 0, -1], u: [1, 0], v: [1, 1, 0, 0], tile: 1 },
-        // Right (+X)
-        { normal: [1, 0, 0], u: [0, 1], v: [1, 1, 0, 0], tile: 2 },
-        // Left (-X)
-        { normal: [-1, 0, 0], u: [1, 0], v: [1, 1, 0, 0], tile: 3 },
-        // Top (+Y)
-        { normal: [0, 1, 0], u: [0, 1], v: [0, 0, 1, 1], tile: 4 },
-        // Bottom (-Y)
-        { normal: [0, -1, 0], u: [0, 1], v: [1, 1, 0, 0], tile: 5 },
-    ];
-
-    const verts = [
-        [-0.5, -0.5,  0.5],
-        [ 0.5, -0.5,  0.5],
-        [ 0.5,  0.5,  0.5],
-        [-0.5,  0.5,  0.5],
-
-        [-0.5, -0.5, -0.5],
-        [ 0.5, -0.5, -0.5],
-        [ 0.5,  0.5, -0.5],
-        [-0.5,  0.5, -0.5],
-    ];
-
-    const faceIndices = [
-        [0, 1, 2, 3], // front
-        [5, 4, 7, 6], // back
-        [1, 5, 6, 2], // right
-        [4, 0, 3, 7], // left
-        [3, 2, 6, 7], // top
-        [4, 5, 1, 0], // bottom
-    ];
-
-    for (let i = 0; i < 6; i++) {
-        const tile = i;
-        const [a, b, c, d] = faceIndices[i];
-        const vertsA = verts[a];
-        const vertsB = verts[b];
-        const vertsC = verts[c];
-        const vertsD = verts[d];
-
-        const tileOffset = tile * tileSize;
-
-        // Add 2 triangles per face
-        positions.push(...vertsA, ...vertsB, ...vertsC);
-        positions.push(...vertsA, ...vertsC, ...vertsD);
-
-        uvs.push(
-            tileOffset + tileSize, 1,
-            tileOffset, 1,
-            tileOffset, 0,
-
-            tileOffset + tileSize, 1,
-            tileOffset, 0,
-            tileOffset + tileSize, 0
-        );
-    }
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.computeVertexNormals();
-    return geometry;
-}
-
-function createNumberedD6AtlasTexture() {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 128 * 6;
-    canvas.height = 128;
-
-    for (let i = 0; i < 6; i++) {
-        const x = i * 128;
-        ctx.fillStyle = '#ffffcc';
-        ctx.fillRect(x, 0, 128, 128);
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 64px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText((i + 1).toString(), x + 64, 64);
-    }
-
-    return new THREE.CanvasTexture(canvas);
-}
-
-function createPhysicsD6Shape(size = 0.5) {
-    const s = size;
-    const verts = [
-        new CANNON.Vec3(-s, -s, -s),
-        new CANNON.Vec3(-s, -s,  s),
-        new CANNON.Vec3(-s,  s, -s),
-        new CANNON.Vec3(-s,  s,  s),
-        new CANNON.Vec3( s, -s, -s),
-        new CANNON.Vec3( s, -s,  s),
-        new CANNON.Vec3( s,  s, -s),
-        new CANNON.Vec3( s,  s,  s),
-    ];
-
-    const faces = [
-        [0, 1, 3, 2], // -X
-        [4, 6, 7, 5], // +X
-        [0, 4, 5, 1], // -Y
-        [2, 3, 7, 6], // +Y
-        [0, 2, 6, 4], // -Z
-        [1, 5, 7, 3]  // +Z
-    ];
-
-    return new CANNON.ConvexPolyhedron({vertices: verts, faces});
-}
-
-function getTopFaceIndexForD6(quat) {
-    const up = new THREE.Vector3(0, 1, 0);
-    const q = new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w);
-
-    const faceNormals = [
-        new THREE.Vector3(0, 0, 1),   // 0: front (+Z)
-        new THREE.Vector3(0, 0, -1),  // 1: back  (-Z)
-        new THREE.Vector3(1, 0, 0),   // 2: right (+X)
-        new THREE.Vector3(-1, 0, 0),  // 3: left  (-X)
-        new THREE.Vector3(0, 1, 0),   // 4: top   (+Y)
-        new THREE.Vector3(0, -1, 0),  // 5: bottom(-Y)
-    ];
-
-    let maxDot = -Infinity;
-    let bestFace = 0;
-
-    for (let i = 0; i < faceNormals.length; i++) {
-        const worldNormal = faceNormals[i].clone().applyQuaternion(q);
-        const dot = worldNormal.dot(up);
-        if (dot > maxDot) {
-            maxDot = dot;
-            bestFace = i;
-        }
-    }
-
-    return bestFace; // 0–5 index
-}
-
-function createNumberedD10Geometry() {
-    const geometry = new THREE.BufferGeometry();
-
-    const verts = [];
-    const faces = [];
-
-    const top = new THREE.Vector3(0, 1, 0);
-    const bottom = new THREE.Vector3(0, -1, 0);
-    const radius = 1;
-    const angleStep = Math.PI * 2 / 10;
-
-    for (let i = 0; i < 10; i++) {
-        const angle = i * angleStep;
-        verts.push(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
-    }
-
-    for (let i = 0; i < 10; i++) {
-        const next = (i + 1) % 10;
-        if (i % 2 === 0) {
-            faces.push([10, i, next]); // top point
-        } else {
-            faces.push([11, next, i]); // bottom point
-        }
-    }
-
-    verts.push(top);    // index 10
-    verts.push(bottom); // index 11
-
-    const positions = [];
-    const uvs = [];
-    const tileWidth = 1 / 10;
-
-    for (let i = 0; i < faces.length; i++) {
-        const [aIdx, bIdx, cIdx] = faces[i];
-        const a = verts[aIdx];
-        const b = verts[bIdx];
-        const c = verts[cIdx];
-
-        positions.push(a.x, a.y, a.z);
-        positions.push(b.x, b.y, b.z);
-        positions.push(c.x, c.y, c.z);
-
-        // Same texture mapping trick as D8
-        const faceCenter = new THREE.Vector3().addVectors(a, b).add(c).divideScalar(3);
-        const ab = new THREE.Vector3().subVectors(b, a);
-        const ac = new THREE.Vector3().subVectors(c, a);
-        const normal = new THREE.Vector3().crossVectors(ab, ac).normalize();
-
-        const faceY = new THREE.Vector3(0, 1, 0);
-        if (Math.abs(normal.dot(faceY)) > 0.99) faceY.set(1, 0, 0);
-
-        const xAxis = new THREE.Vector3().crossVectors(faceY, normal).normalize();
-        const yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
-
-        const toUV = (v) => {
-            const p = new THREE.Vector3().subVectors(v, faceCenter);
-            return {
-                u: p.dot(xAxis),
-                v: p.dot(yAxis)
-            };
-        };
-
-        let uvA = toUV(a), uvB = toUV(b), uvC = toUV(c);
-
-        const maxRange = Math.max(
-            Math.abs(uvA.u), Math.abs(uvA.v),
-            Math.abs(uvB.u), Math.abs(uvB.v),
-            Math.abs(uvC.u), Math.abs(uvC.v)
-        ) || 1;
-
-        const tileOffsetU = i * tileWidth;
-
-        const packUV = (uv) => [
-            tileOffsetU + (uv.u / maxRange / 2 + 0.5) * tileWidth,
-            (uv.v / maxRange / 2 + 0.5)
-        ];
-
-        uvs.push(...packUV(uvA), ...packUV(uvB), ...packUV(uvC));
-    }
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.computeVertexNormals();
-
-    return geometry;
-}
-
-function createNumberedD10AtlasTexture() {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 128 * 10;
-    canvas.height = 128;
-
-    for (let i = 0; i < 10; i++) {
-        const x = i * 128;
-        ctx.fillStyle = '#ffe0cc';
-        ctx.fillRect(x, 0, 128, 128);
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 64px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText((i + 1).toString(), x + 64, 64);
-    }
-
-    return new THREE.CanvasTexture(canvas);
-}
-
-function createPhysicsD10Shape() {
-    const verts = [];
-    const faces = [];
-
-    const R = 1.0;       // Radius of base ring
-    const H = 0.4;       // Half height between alternating rim vertices
-    const T = 1.1;       // Distance to top/bottom tip from center
-
-    // 10 rim vertices, alternating in height (+H / -H)
-    for (let i = 0; i < 10; i++) {
-        const angle = (i / 10) * Math.PI * 2;
-        const y = (i % 2 === 0) ? -H : H;
-        const x = Math.cos(angle) * R;
-        const z = Math.sin(angle) * R;
-        verts.push(new CANNON.Vec3(x, y, z));
-    }
-
-    // Add tips
-    const topIndex = verts.length;
-    const bottomIndex = verts.length + 1;
-    verts.push(new CANNON.Vec3(0, T, 0));    // Top tip
-    verts.push(new CANNON.Vec3(0, -T, 0));   // Bottom tip
-
-    // Connect each pair to top or bottom
-    for (let i = 0; i < 10; i++) {
-        const next = (i + 1) % 10;
-        if (i % 2 === 0) {
-            // Face to bottom tip
-            faces.push([i, next, bottomIndex]); // CCW order from outside
-        } else {
-            // Face to top tip
-            faces.push([topIndex, next, i]); // CCW order from outside
-        }
-    }
-
-    const poly = new CANNON.ConvexPolyhedron({ vertices: verts, faces });
-
-    // Debug: verify construction
-    console.log("D10: verts=", verts.length, "faces=", faces.length);
-    return poly;
-}
-
-
-
-// I think this works for any shape?
-function createPhysicsDebugMesh(body, color = 0xff0000) {
-    const shape = body.shapes[0];
-    const geometry = new THREE.BufferGeometry();
-    const vertices = [];
-    const edges = new Set();
-
-    shape.faces.forEach(face => {
-        for (let i = 0; i < face.length; i++) {
-            const a = face[i];
-            const b = face[(i + 1) % face.length];
-            const key = [Math.min(a, b), Math.max(a, b)].join('-');
-            if (!edges.has(key)) {
-                edges.add(key);
-                const va = shape.vertices[a];
-                const vb = shape.vertices[b];
-                vertices.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
-            }
-        }
-    });
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    const material = new THREE.LineBasicMaterial({color});
-    const mesh = new THREE.LineSegments(geometry, material);
-    scene.add(mesh);
-    return mesh;
-}
 
 const diceTypes = {
     d8: {
@@ -568,19 +122,62 @@ const diceTypes = {
         getGeometry: createNumberedD10Geometry,
         getTexture: createNumberedD10AtlasTexture,
         getShape: createPhysicsD10Shape,
-        getTopFaceIndex: getTopFaceIndex // reuses triangle-based generic one
+        getTopFaceIndex: getTopFaceIndexForD10
+    },
+    d12: {
+        geometry: null,
+        material: null,
+        shape: null,
+        faceCount: 10,
+        getGeometry: createNumberedD12Geometry,
+        getTexture: createNumberedD12AtlasTexture,
+        getShape: createPhysicsD12Shape,
+        getTopFaceIndex: getTopFaceIndexForD12
+    },
+    d20: {
+        geometry: null,
+        material: null,
+        shape: null,
+        faceCount: 20,
+        getGeometry: createNumberedD20Geometry,
+        getTexture: createNumberedD20AtlasTexture,
+        getShape: createPhysicsD20Shape,
+        getTopFaceIndex: getTopFaceIndexForD20
     }
 };
 
-diceTypes.d8.geometry = diceTypes.d8.getGeometry();
-diceTypes.d8.material = new THREE.MeshStandardMaterial({map: diceTypes.d8.getTexture()});
-diceTypes.d8.shape = diceTypes.d8.getShape();
-diceTypes.d6.geometry = diceTypes.d6.getGeometry();
-diceTypes.d6.material = new THREE.MeshStandardMaterial({map: diceTypes.d6.getTexture()});
-diceTypes.d6.shape = diceTypes.d6.getShape();
-diceTypes.d10.geometry = diceTypes.d10.getGeometry();
-diceTypes.d10.material = new THREE.MeshStandardMaterial({ map: diceTypes.d10.getTexture() });
-diceTypes.d10.shape = diceTypes.d10.getShape();
+for (const [key, die] of Object.entries(diceTypes)) {
+    die.geometry = die.getGeometry();
+    die.material = new THREE.MeshStandardMaterial({ map: die.getTexture() });
+    die.shape = die.getShape();
+}
+
+function createPhysicsDebugMesh(body, color = 0xff0000) {
+    const shape = body.shapes[0];
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const edges = new Set();
+
+    shape.faces.forEach(face => {
+        for (let i = 0; i < face.length; i++) {
+            const a = face[i];
+            const b = face[(i + 1) % face.length];
+            const key = [Math.min(a, b), Math.max(a, b)].join('-');
+            if (!edges.has(key)) {
+                edges.add(key);
+                const va = shape.vertices[a];
+                const vb = shape.vertices[b];
+                vertices.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
+            }
+        }
+    });
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const material = new THREE.LineBasicMaterial({color});
+    const mesh = new THREE.LineSegments(geometry, material);
+    scene.add(mesh);
+    return mesh;
+}
 
 function randomQuaternion() {
     const u1 = Math.random();
@@ -620,20 +217,44 @@ function setupDiePhysics(body) {
     body.wakeUp();
 }
 
-function createDiceSet(d6_count, d8_count) {
+function createDiceSet(diceTypeCounts) {
     dice.length = 0;
     diceResults = [];
 
-    const total = d6_count + d8_count;
     const spawnRange = 12;
-    const spacing = spawnRange / (total + 1);
 
-    let dieIndex = 0;
+    // Get only the active types (non-zero count), in desired order
+    let activeTypes = Object.keys(diceTypeCounts)
+        .filter(type => diceTypeCounts[type] > 0);
+    const typeSpacing = spawnRange / activeTypes.length;
 
-    // Helper function to add a die of a given type
+    const typeZones = {};
+    activeTypes.forEach((type, i) => {
+        const zoneCenter = -spawnRange / 2 + typeSpacing * (i + 0.5);
+        typeZones[type] = zoneCenter;
+    });
+
+    const typeIndexes = {};
+    for (const type of activeTypes) {
+        typeIndexes[type] = 0;
+    }
+
     function spawnDie(type) {
         const def = diceTypes[type];
-        const xPos = -spawnRange / 2 + spacing * (dieIndex + 1);
+        const index = typeIndexes[type]++;
+        const count = diceTypeCounts[type];
+        const zoneCenter = typeZones[type];
+
+        const spacing = 1.5; // minimum space between dice
+        const dicePerRow = Math.ceil(Math.sqrt(count));
+        const row = Math.floor(index / dicePerRow);
+        const col = index % dicePerRow;
+
+        const localX = (col - (dicePerRow - 1) / 2) * spacing;
+        const localZ = (row - (dicePerRow - 1) / 2) * spacing;
+
+        const xPos = zoneCenter + localX + (Math.random() - 0.5) * 0.4; // slight jitter
+        const zPos = localZ + (Math.random() - 0.5) * 0.4;
 
         const mesh = new THREE.Mesh(def.geometry, def.material);
         scene.add(mesh);
@@ -646,7 +267,7 @@ function createDiceSet(d6_count, d8_count) {
             position: new CANNON.Vec3(
                 xPos,
                 6 + Math.random() * 2,
-                (Math.random() - 0.5) * spawnRange
+                zPos
             )
         });
 
@@ -670,14 +291,14 @@ function createDiceSet(d6_count, d8_count) {
         });
 
         diceResults.push(null);
-        dieIndex++;
     }
 
-    // Add D6 dice
-    for (let i = 0; i < d6_count; i++) spawnDie('d6');
-
-    // Add D8 dice
-    for (let i = 0; i < d8_count; i++) spawnDie('d8');
+    // Loop through and spawn dice by type
+    for (const type of activeTypes) {
+        for (let i = 0; i < diceTypeCounts[type]; i++) {
+            spawnDie(type);
+        }
+    }
 }
 
 function respawnDie(die) {
@@ -703,10 +324,10 @@ function checkDiceStopped() {
 
         const velocity = d.body.velocity.length();
         const angular = d.body.angularVelocity.length();
-        if (velocity > 0.1 || angular > 0.1) {
+        if (velocity > 0.05 || angular > 0.05) {
             allStopped = false;
         } else if (diceResults[i] === null) {
-            diceResults[i] = diceTypes[d.type].getTopFaceIndex(d.body.quaternion) + 1;
+            diceResults[i] = diceTypes[d.type].getTopFaceIndex(d.body.quaternion, diceTypes[d.type].geometry) + 1;
         }
     });
 
@@ -723,7 +344,8 @@ function checkDiceStopped() {
         const dieData = dice.map((d, i) => ({
             result: diceResults[i],
             screen: worldToScreenPos(d.mesh.position.clone(), camera),
-            mesh: d.mesh
+            mesh: d.mesh,
+            type: d.type
         }));
 
         // Group dice by result value
@@ -749,6 +371,12 @@ function checkDiceStopped() {
             const label = document.createElement('div');
             label.className = 'die-label';
             label.textContent = die.result;
+
+            const color2 = DIE_COLORS[die.type] || '#ffffff';
+            label.style.backgroundColor = color2;
+            label.style.border = `2px solid white`; // Optional for contrast
+            label.style.color = '#000'; // Keep text readable
+
             labelBar.appendChild(label);
             die.label = label; // keep for line drawing
         });
@@ -782,98 +410,14 @@ function checkDiceStopped() {
             line.setAttribute('y1', labelY);
             line.setAttribute('x2', die.screen.x);
             line.setAttribute('y2', die.screen.y);
-            line.setAttribute('stroke', 'white');
+            const color = DIE_COLORS[die.type] || '#ffffff';
+
+            line.setAttribute('stroke', color);
             line.setAttribute('stroke-width', '1.5');
             svg.appendChild(line);
         });
     }
 }
-
-
-// Gorgeous labels with lines all matching numbers and no crossing(mostly)
-// function checkDiceStopped() {
-//     let allStopped = true;
-//
-//     dice.forEach((d, i) => {
-//         if (d.body.position.y < -10) {
-//             respawnDie(d);
-//             diceResults[i] = null;
-//             allStopped = false;
-//             return;
-//         }
-//
-//         const velocity = d.body.velocity.length();
-//         const angular = d.body.angularVelocity.length();
-//         if (velocity > 0.1 || angular > 0.1) {
-//             allStopped = false;
-//         } else if (diceResults[i] === null) {
-//             diceResults[i] = diceTypes[d.type].getTopFaceIndex(d.body.quaternion) + 1;
-//         }
-//     });
-//
-//     if (allStopped && diceResults.every(x => x !== null)) {
-//         const labelBar = document.getElementById('labelBar');
-//         const svg = document.getElementById('lineOverlay');
-//
-//         labelBar.innerHTML = '';
-//         while (svg.firstChild) svg.removeChild(svg.firstChild);
-//
-//         // Gather dice with result and screen position
-//         const dieData = dice.map((d, i) => {
-//             return {
-//                 mesh: d.mesh,
-//                 result: diceResults[i],
-//                 screen: worldToScreenPos(d.mesh.position.clone(), camera)
-//             };
-//         });
-//
-//         // Sort by screen X position for consistent label alignment
-//         dieData.sort((a, b) => a.screen.x - b.screen.x);
-//
-//         const total = dieData.reduce((sum, d) => sum + d.result, 0) + ADD_COUNT;
-//         const positions = [];
-//
-//         dieData.forEach((die) => {
-//             const label = document.createElement('div');
-//             label.className = 'die-label';
-//             label.textContent = die.result;
-//             labelBar.appendChild(label);
-//
-//             positions.push({ screen: die.screen, label });
-//         });
-//
-//         if (ADD_COUNT) {
-//             const bonusLabel = document.createElement('div');
-//             bonusLabel.className = 'die-label';
-//             bonusLabel.textContent = `+${ADD_COUNT}`;
-//             labelBar.appendChild(bonusLabel);
-//         }
-//
-//         const totalLabel = document.createElement('div');
-//         totalLabel.className = 'die-label';
-//         totalLabel.textContent = `= ${total}`;
-//         labelBar.appendChild(totalLabel);
-//
-//         document.getElementById('result').innerText = ' ';
-//
-//         const labelBarRect = labelBar.getBoundingClientRect();
-//         positions.forEach(({ screen, label }) => {
-//             const labelRect = label.getBoundingClientRect();
-//             const labelX = labelRect.left + labelRect.width / 2;
-//             const labelY = labelBarRect.bottom;
-//
-//             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-//             line.setAttribute('x1', labelX);
-//             line.setAttribute('y1', labelY);
-//             line.setAttribute('x2', screen.x);
-//             line.setAttribute('y2', screen.y);
-//             line.setAttribute('stroke', 'white');
-//             line.setAttribute('stroke-width', '1.5');
-//             svg.appendChild(line);
-//         });
-//     }
-// }
-
 
 function resetDice() {
     // Remove dice meshes and bodies
@@ -892,7 +436,7 @@ function resetDice() {
     if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     // Reset and recreate dice
-    createDiceSet(D6_COUNT, D8_COUNT);
+    createDiceSet(diceTypeCounts);
     document.getElementById('result').innerText = 'Rolling...';
 }
 
@@ -903,6 +447,27 @@ function worldToScreenPos(pos, camera) {
         y: (-vector.y + 1) * window.innerHeight / 2
     };
 }
+
+const updateUI = () => {
+    document.getElementById('d20Count').textContent = diceTypeCounts.d20;
+    document.getElementById('d12Count').textContent = diceTypeCounts.d12;
+    document.getElementById('d10Count').textContent = diceTypeCounts.d10;
+    document.getElementById('d8Count').textContent = diceTypeCounts.d8;
+    document.getElementById('d6Count').textContent = diceTypeCounts.d6;
+    // Optionally, re-roll or re-initialize dice
+};
+
+export const changeCount = (type, delta) => {
+    if (diceTypeCounts.hasOwnProperty(type)) {
+        diceTypeCounts[type] = Math.max(0, diceTypeCounts[type] + delta);
+        updateUI();
+    }
+};
+
+window.changeCount = changeCount;
+
+// Initial UI state
+updateUI();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -926,7 +491,6 @@ world.defaultContactMaterial = new CANNON.ContactMaterial(diceMaterial, diceMate
     friction: 0.4,
     restitution: 0.6
 });
-
 
 setupWalls(scene, world);
 
@@ -960,10 +524,12 @@ function animate() {
     controls.update(); // for damping
     renderer.render(scene, camera);
 }
-
-createDiceSet(D6_COUNT, D8_COUNT);
+updateUI()
+createDiceSet(diceTypeCounts);
 animate();
 
+// Add gui(most of it anyway)
+document.getElementById('resetButton').addEventListener('click', resetDice);
 window.addEventListener('keydown', e => {
     if (e.key.toLowerCase() === 'r') resetDice();
     if (e.key.toLowerCase() === 'd') {
@@ -971,3 +537,63 @@ window.addEventListener('keydown', e => {
         dice.forEach(d => d.debugMesh.visible = debugMode);
     }
 });
+
+document.addEventListener('click', function (event) {
+    const d10Details = document.getElementById('d10-details');
+
+    // If the click is *outside* the <details> element and it's open, close it
+    if (
+        d10Details.open &&
+        !d10Details.contains(event.target)
+    ) {
+        d10Details.removeAttribute('open');
+    }
+});
+
+
+const presets = [
+    { label: 'Fireball', d8: 0, d6: 8, d10:0, d12:0, d20:0 },
+    { label: 'Smite 1', d8: 2, d6: 0, d10:0, d12:0, d20:0 },
+    { label: 'Smite 2', d8: 3, d6: 0, d10:0, d12:0, d20:0 },
+    { label: 'Smite 3', d8: 4, d6: 0, d10:0, d12:0, d20:0 },
+    { label: 'Smite 4', d8: 5, d6: 0, d10:0, d12:0, d20:0 },
+    { label: 'Max Demo', d8: 10, d6: 10, d10:0, d12:0, d20:0 },
+];
+
+function setDiceCounts(d20, d12, d10, d8, d6) {
+    diceTypeCounts.d6 = d6
+    diceTypeCounts.d8 = d8
+    diceTypeCounts.d10 = d10
+    diceTypeCounts.d12 = d12
+    diceTypeCounts.d20 = d20
+    updateUI();
+}
+
+// Generate buttons in #presets
+const presetContainer = document.getElementById('presets');
+
+presets.forEach(preset => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-button';
+    btn.textContent = preset.label;
+    btn.addEventListener('click', () => setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6));
+    presetContainer.appendChild(btn);
+});
+
+
+const tag = document.createElement('div');
+tag.textContent = `🕒 ${__BUILD_TIME__}`;
+tag.style.cssText = `
+  position: fixed;
+  bottom: 10px;
+  right: 12px;
+  font-size: 14px;
+  font-family: monospace;
+  color: rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 9999;
+  pointer-events: none;
+`;
+document.body.appendChild(tag);
