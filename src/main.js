@@ -3,6 +3,13 @@ import * as CANNON from 'cannon-es';
 
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {
+    createNumberedD4AtlasTexture,
+    createNumberedD4Geometry,
+    createPhysicsD4Shape,
+    getTopFaceIndexForD4
+} from "./d4_code.js";
+
+import {
     createNumberedAtlasTexture,
     createNumberedD8Geometry,
     createPhysicsD8Shape,
@@ -36,20 +43,44 @@ import {
 } from "./d20_code.js";
 
 const urlParams = new URLSearchParams(window.location.search);
+
+const D4_COUNT = parseInt(urlParams.get('d4')) || 5;
 const D6_COUNT = parseInt(urlParams.get('d6')) || 0;
 const D8_COUNT = parseInt(urlParams.get('d8')) || 0;
 const D10_COUNT = parseInt(urlParams.get('d10')) || 0;
 const D12_COUNT = parseInt(urlParams.get('d12')) || 0;
 const D20_COUNT = parseInt(urlParams.get('d20')) || 0;
 let ADD_COUNT = parseInt(urlParams.get('add')) || 0;
+const dice_string = urlParams.get("dice") || ""
+
 
 let diceTypeCounts = {
+    d4: D4_COUNT,
     d6: D6_COUNT,
     d8: D8_COUNT,
     d10: D10_COUNT,
     d12: D12_COUNT,
     d20: D20_COUNT
 };
+
+if (dice_string != "") {
+    let loaded_dice = parseDndDiceNotation(dice_string);
+    for (let key in diceTypeCounts) {
+        if (key.startsWith("d")) {
+            diceTypeCounts[key] = 0;
+            ADD_COUNT = 0;
+        }
+    }
+
+    for (let key in loaded_dice) {
+        if (key.startsWith("d")) {
+            diceTypeCounts[key] = loaded_dice[key];
+        } else {
+            ADD_COUNT = loaded_dice[key];
+        }
+    }
+
+}
 
 if (Object.values(diceTypeCounts).every(count => count === 0)) {
     diceTypeCounts.d8 = 2; // default fallback
@@ -60,8 +91,33 @@ const DIE_COLORS = {
     d8:  '#E69F00',  // Orange-yellow
     d10: '#56B4E9',  // Sky Blue
     d12: '#CC79A7',  // Magenta-pink
-    d20: '#F0E442'   // Soft Yellow
+    d20: '#F0E442',  // Soft Yellow,
+    d4:  '#009E73',  // Teal green ✅ NEW
 };
+
+function parseDndDiceNotation(notation) {
+    const validDice = new Set(["d4", "d6", "d8", "d10", "d12", "d20"]);
+    const result = {};
+    const pattern = /([+-]?\d*)d(\d+)|([+-]?\d+)/gi;
+    let match;
+    while ((match = pattern.exec(notation)) !== null) {
+        if (match[1] !== undefined && match[2] !== undefined) {
+            // Dice term
+            const dieType = `d${match[2]}`;
+            if (!validDice.has(dieType)) continue; // skip invalid dice
+
+            const count = parseInt(match[1]) || (match[1] === "-" ? -1 : 1);
+            result[dieType] = (result[dieType] || 0) + count;
+        } else if (match[3] !== undefined) {
+            // Flat modifier
+            const value = parseInt(match[3]);
+            result["add"] = (result["add"] || 0) + value;
+        }
+    }
+
+    return result;
+}
+
 
 let wallBodies = [];
 let wallMeshes = [];
@@ -110,6 +166,16 @@ export function setupWalls(scene, world, extraWidth = 0) {
 
 
 const diceTypes = {
+    d4: {
+        geometry: null,
+        material: null,
+        shape: null,
+        faceCount: 8,
+        getTexture: createNumberedD4AtlasTexture,
+        getGeometry: createNumberedD4Geometry,
+        getShape: createPhysicsD4Shape,
+        getTopFaceIndex: getTopFaceIndexForD4
+    },
     d8: {
         geometry: null,
         material: null,
@@ -509,6 +575,7 @@ const updateUI = () => {
     document.getElementById('d10Count').textContent = diceTypeCounts.d10;
     document.getElementById('d8Count').textContent = diceTypeCounts.d8;
     document.getElementById('d6Count').textContent = diceTypeCounts.d6;
+    document.getElementById('d4Count').textContent = diceTypeCounts.d4;
     // Optionally, re-roll or re-initialize dice
 };
 
@@ -607,16 +674,19 @@ document.addEventListener('click', function (event) {
 
 
 const presets = [
-    { label: 'Fireball', d8: 0, d6: 8, d10:0, d12:0, d20:0 },
-    { label: 'Smite 1', d8: 2, d6: 0, d10:0, d12:0, d20:0 },
-    { label: 'Smite 2', d8: 3, d6: 0, d10:0, d12:0, d20:0 },
-    { label: 'Smite 3', d8: 4, d6: 0, d10:0, d12:0, d20:0 },
-    { label: 'Smite 4', d8: 5, d6: 0, d10:0, d12:0, d20:0 },
-    { label: 'Max Demo', d8: 10, d6: 10, d10:0, d12:0, d20:0 },
-    { label: '1000', d8: 0, d6: 1000, d10:0, d12:0, d20:0 },
+    { label: '1d20', d8: 0, d6: 0, d10:0, d12:0, d20:1, d4:0 },
+    { label: '2d20', d8: 0, d6: 0, d10:0, d12:0, d20:2, d4:0 },
+    { label: 'Fireball', d8: 0, d6: 8, d10:0, d12:0, d20:0, d4:0 },
+    { label: 'Smite 1', d8: 2, d6: 0, d10:0, d12:0, d20:0, d4:0 },
+    { label: 'Smite 2', d8: 3, d6: 0, d10:0, d12:0, d20:0, d4:0 },
+    { label: 'Smite 3', d8: 4, d6: 0, d10:0, d12:0, d20:0, d4:0 },
+    { label: 'Smite 4', d8: 5, d6: 0, d10:0, d12:0, d20:0, d4:0 },
+    { label: 'Max Demo', d8: 10, d6: 10, d10:0, d12:0, d20:0, d4:0 },
+    { label: '1000', d8: 0, d6: 1000, d10:0, d12:0, d20:0, d4:0 },
 ];
 
-function setDiceCounts(d20, d12, d10, d8, d6) {
+function setDiceCounts(d20, d12, d10, d8, d6, d4) {
+    diceTypeCounts.d4 = d4
     diceTypeCounts.d6 = d6
     diceTypeCounts.d8 = d8
     diceTypeCounts.d10 = d10
@@ -633,7 +703,7 @@ presets.forEach(preset => {
     const btn = document.createElement('button');
     btn.className = 'preset-button';
     btn.textContent = preset.label;
-    btn.addEventListener('click', () => setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6));
+    btn.addEventListener('click', () => setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6, preset.d4));
     presetContainer.appendChild(btn);
 });
 

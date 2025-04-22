@@ -2,7 +2,8 @@
 export default {
   base: '/dice-roller/', // replace with your actual GitHub repo name
   server: {
-    open: true
+    open: true,
+    sourcemap: true,
   },
     define: {
       __BUILD_TIME__: JSON.stringify(

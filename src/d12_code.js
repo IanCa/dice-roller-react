@@ -55,7 +55,7 @@ export function createNumberedD12AtlasTexture() {
 }
 
 export function createNumberedD12Geometry() {
-    const base = new THREE.DodecahedronGeometry(1);
+    const base = new THREE.DodecahedronGeometry(.75);
     const geometry = new THREE.BufferGeometry().copy(base.toNonIndexed());
 
     const position = geometry.getAttribute('position');
@@ -147,7 +147,7 @@ export function createNumberedD12Geometry() {
 }
 
 export function createPhysicsD12Shape() {
-    const geometry = new THREE.DodecahedronGeometry(1);
+    const geometry = new THREE.DodecahedronGeometry(.75);
     const position = geometry.getAttribute('position');
     const verts = [];
 

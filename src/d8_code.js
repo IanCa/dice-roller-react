@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
+const D8_SCALE = 0.7;
+
 // D8 creation
 export function createNumberedD8Geometry() {
     const verts = [
-        new THREE.Vector3(1, 0, 0),   // 0
-        new THREE.Vector3(-1, 0, 0),  // 1
-        new THREE.Vector3(0, 1, 0),   // 2
-        new THREE.Vector3(0, -1, 0),  // 3
-        new THREE.Vector3(0, 0, 1),   // 4
-        new THREE.Vector3(0, 0, -1),  // 5
+        new THREE.Vector3(1, 0, 0).multiplyScalar(D8_SCALE),
+        new THREE.Vector3(-1, 0, 0).multiplyScalar(D8_SCALE),
+        new THREE.Vector3(0, 1, 0).multiplyScalar(D8_SCALE),
+        new THREE.Vector3(0, -1, 0).multiplyScalar(D8_SCALE),
+        new THREE.Vector3(0, 0, 1).multiplyScalar(D8_SCALE),
+        new THREE.Vector3(0, 0, -1).multiplyScalar(D8_SCALE),
     ];
 
     const faces = [
@@ -128,12 +130,12 @@ export function createNumberedAtlasTexture() {
 
 export function createPhysicsD8Shape() {
     const verts = [
-        new CANNON.Vec3(1.0, 0, 0),
-        new CANNON.Vec3(-1.0, 0, 0),
-        new CANNON.Vec3(0, 1.0, 0),
-        new CANNON.Vec3(0, -1.0, 0),
-        new CANNON.Vec3(0, 0, 1.0),
-        new CANNON.Vec3(0, 0, -1.0),
+        new CANNON.Vec3(1.0 * D8_SCALE, 0, 0),
+        new CANNON.Vec3(-1.0 * D8_SCALE, 0, 0),
+        new CANNON.Vec3(0, 1.0 * D8_SCALE, 0),
+        new CANNON.Vec3(0, -1.0 * D8_SCALE, 0),
+        new CANNON.Vec3(0, 0, 1.0 * D8_SCALE),
+        new CANNON.Vec3(0, 0, -1.0 * D8_SCALE),
     ];
 
     const faces = [
