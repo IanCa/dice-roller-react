@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import * as CANNON from 'cannon-es';
+import {
+    DIE_DRAW_COLORS
+} from "./config.js"
 
 export function createNumberedD6AtlasTexture() {
     const canvas = document.createElement('canvas');
@@ -9,7 +12,7 @@ export function createNumberedD6AtlasTexture() {
 
     for (let i = 0; i < 6; i++) {
         const x = i * 128;
-        ctx.fillStyle = '#ffffcc';
+        ctx.fillStyle = DIE_DRAW_COLORS['d6'];
         ctx.fillRect(x, 0, 128, 128);
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 64px sans-serif';

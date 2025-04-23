@@ -41,9 +41,13 @@ import {
     createPhysicsD20Shape,
     getTopFaceIndexForD20
 } from "./d20_code.js";
+import {
+    DIE_COLORS
+} from "./config.js"
 
 const urlParams = new URLSearchParams(window.location.search);
 
+const MAX_DICE = 1000
 const D4_COUNT = parseInt(urlParams.get('d4')) || 0;
 const D6_COUNT = parseInt(urlParams.get('d6')) || 0;
 const D8_COUNT = parseInt(urlParams.get('d8')) || 0;
@@ -90,14 +94,14 @@ if (Object.values(diceTypeCounts).every(count => count === 0)) {
     diceTypeCounts.d8 = 2; // default fallback
 }
 
-const DIE_COLORS = {
-    d6:  '#40E0D0',  // Bright Turquoise ✅
-    d8:  '#E69F00',  // Orange-yellow
-    d10: '#56B4E9',  // Sky Blue
-    d12: '#CC79A7',  // Magenta-pink
-    d20: '#F0E442',  // Soft Yellow,
-    d4:  '#009E73',  // Teal green ✅ NEW
-};
+// const DIE_COLORS = {
+//     d6:  '#40E0D0',  // Bright Turquoise ✅
+//     d8:  '#E69F00',  // Orange-yellow
+//     d10: '#56B4E9',  // Sky Blue
+//     d12: '#CC79A7',  // Magenta-pink
+//     d20: '#F0E442',  // Soft Yellow,
+//     d4:  '#009E73',  // Teal green ✅ NEW
+// };
 
 function parseDndDiceNotation(notation) {
     const validDice = new Set(["d4", "d6", "d8", "d10", "d12", "d20"]);
@@ -123,48 +127,6 @@ function parseDndDiceNotation(notation) {
 }
 
 
-let wallBodies = [];
-let wallMeshes = [];
-
-export function setupWalls(scene, world, extraWidth = 0) {
-    // Clear previous walls
-    for (const body of wallBodies) world.removeBody(body);
-    for (const mesh of wallMeshes) {
-        scene.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
-    }
-    wallBodies = [];
-    wallMeshes = [];
-
-    const baseSize = 30;
-    const boundarySize = baseSize + extraWidth; // Extend size if needed
-
-    function createWall(pos, rot, size, skipVisual = false) {
-        const shape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
-        const body = new CANNON.Body({ mass: 0, shape, position: pos });
-        body.quaternion.setFromEuler(rot.x, rot.y, rot.z);
-        world.addBody(body);
-        wallBodies.push(body);
-
-        if (!skipVisual) {
-            const geo = new THREE.BoxGeometry(size.x, size.y, size.z);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.copy(pos);
-            mesh.rotation.set(rot.x, rot.y, rot.z);
-            scene.add(mesh);
-            wallMeshes.push(mesh);
-        }
-    }
-
-    createWall(new CANNON.Vec3(0, -0.5, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize });
-    createWall(new CANNON.Vec3(0, 10, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize }, true);
-    createWall(new CANNON.Vec3(-boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
-    createWall(new CANNON.Vec3(boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
-    createWall(new CANNON.Vec3(0, 5, -boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 });
-    createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 }, true);
-}
 
 
 
@@ -303,93 +265,143 @@ function setupDiePhysics(body) {
     body.wakeUp();
 }
 
+let wallBodies = [];
+let wallMeshes = [];
+
+export function setupWalls(scene, world, extraWidth = 0) {
+    // Clear previous walls
+    for (const body of wallBodies) world.removeBody(body);
+    for (const mesh of wallMeshes) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+    }
+    wallBodies = [];
+    wallMeshes = [];
+
+    const baseSize = 30;
+    const boundarySize = baseSize + extraWidth; // Extend size if needed
+
+    function createWall(pos, rot, size, skipVisual = false) {
+        const shape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
+        const body = new CANNON.Body({ mass: 0, shape, position: pos });
+        body.quaternion.setFromEuler(rot.x, rot.y, rot.z);
+        world.addBody(body);
+        wallBodies.push(body);
+
+        if (!skipVisual) {
+            const geo = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            mesh.rotation.set(rot.x, rot.y, rot.z);
+            scene.add(mesh);
+            wallMeshes.push(mesh);
+        }
+    }
+
+    createWall(new CANNON.Vec3(0, -0.5, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize });
+    createWall(new CANNON.Vec3(0, 10, 0), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 1, z: boundarySize }, true);
+    createWall(new CANNON.Vec3(-boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
+    createWall(new CANNON.Vec3(boundarySize / 2, 5, 0), new CANNON.Vec3(0, 0, 0), { x: 1, y: 10, z: boundarySize });
+    createWall(new CANNON.Vec3(0, 5, -boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 });
+    createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), { x: boundarySize, y: 10, z: 1 }, true);
+}
+
+
+function spawnDie(x, y, z, type) {
+    const def = diceTypes[type];
+
+    const mesh = new THREE.Mesh(def.geometry, def.material);
+    scene.add(mesh);
+
+    const body = new CANNON.Body({
+        mass: 1,
+        shape: def.shape,
+        material: diceMaterial,
+        allowSleep: false,
+        position: new CANNON.Vec3(x, y, z)
+    });
+
+    body.angularDamping = 0.3;
+    body.linearDamping = 0.3;
+    setupDiePhysics(body);
+    world.addBody(body);
+
+    const debugMesh = createPhysicsDebugMesh(body);
+    debugMesh.scale.set(1.1, 1.1, 1.1);
+    debugMesh.visible = debugMode;
+
+    dice.push({type, mesh, body, debugMesh, geometry: def.geometry});
+
+    diceResults.push(null);
+}
+
+function spawnDieSet(typeOrArray, count, zoneCenter, totalDice) {
+    const baseSpacing = 1.5;
+    const spacing = baseSpacing * (1 + Math.log2(totalDice + 1) * 0.2);
+    const dicePerRow = Math.ceil(Math.sqrt(count));
+
+    const getType = typeof typeOrArray === 'string'
+        ? () => typeOrArray
+        : (i) => typeOrArray[i];
+
+    for (let i = 0; i < count; i++) {
+        const row = Math.floor(i / dicePerRow);
+        const col = i % dicePerRow;
+
+        const localX = (col - (dicePerRow - 1) / 2) * spacing;
+        const localZ = (row - (dicePerRow - 1) / 2) * spacing;
+
+        const xPos = zoneCenter + localX + (Math.random() - 0.5) * 0.4;
+        const yPos = 6 + Math.random() * 2;
+        const zPos = localZ + (Math.random() - 0.5) * 0.4;
+
+        spawnDie(xPos, yPos, zPos, getType(i));
+    }
+}
+
 function createDiceSet(diceTypeCounts) {
     const totalDice = Object.values(diceTypeCounts).reduce((sum, n) => sum + n, 0);
 
     const spawnScale = totalDice <= 40 ? 1 : Math.log2(totalDice / 20 + 1) + 1.5;
     const spawnRange = 12 * spawnScale;
-    const wallExtra = Math.max(0, Math.floor((spawnScale - 1) * 20));
+    let wallExtra = Math.max(0, Math.floor((spawnScale - 1) * 20));
+    if (totalDice > 1000) {
+        wallExtra = 1000;
+    }
 
     setupWalls(scene, world, wallExtra);
     dice.length = 0;
     diceResults = [];
 
-    // Get only the active types (non-zero count), in desired order
-    let activeTypes = Object.keys(diceTypeCounts)
-        .filter(type => diceTypeCounts[type] > 0);
-    const typeSpacing = spawnRange / activeTypes.length;
+    if (totalDice > 40) {
+        // Flatten all dice into a single array with type info
+        const allDice = [];
+        for (const [type, count] of Object.entries(diceTypeCounts)) {
+            for (let i = 0; i < count; i++) {
+                allDice.push(type);
+            }
+        }
 
-    const typeZones = {};
-    activeTypes.forEach((type, i) => {
-        const zoneCenter = -spawnRange / 2 + typeSpacing * (i + 0.5);
-        typeZones[type] = zoneCenter;
-    });
+        // Sort by die type size (assumes type is like "d4", "d6", etc.)
+        allDice.sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+        spawnDieSet(allDice, allDice.length, 0, totalDice);
+    } else {
+        // Normal behavior: spawn dice by type in separate zones
+        const activeTypes = Object.keys(diceTypeCounts).filter(type => diceTypeCounts[type] > 0);
+        const typeSpacing = spawnRange / activeTypes.length;
 
-    const typeIndexes = {};
-    for (const type of activeTypes) {
-        typeIndexes[type] = 0;
-    }
-
-    function spawnDie(type) {
-        const def = diceTypes[type];
-        const index = typeIndexes[type]++;
-        const count = diceTypeCounts[type];
-        const zoneCenter = typeZones[type];
-
-        const baseSpacing = 1.5;
-        const spacing = baseSpacing * (1 + Math.log2(totalDice + 1) * 0.2); // Scales up with more dice
-
-        const dicePerRow = Math.ceil(Math.sqrt(count));
-        const row = Math.floor(index / dicePerRow);
-        const col = index % dicePerRow;
-
-        const localX = (col - (dicePerRow - 1) / 2) * spacing;
-        const localZ = (row - (dicePerRow - 1) / 2) * spacing;
-
-        const xPos = zoneCenter + localX + (Math.random() - 0.5) * 0.4; // slight jitter
-        const zPos = localZ + (Math.random() - 0.5) * 0.4;
-
-        const mesh = new THREE.Mesh(def.geometry, def.material);
-        scene.add(mesh);
-
-        const body = new CANNON.Body({
-            mass: 1,
-            shape: def.shape,
-            material: diceMaterial,
-            allowSleep: false,
-            position: new CANNON.Vec3(
-                xPos,
-                6 + Math.random() * 2,
-                zPos
-            )
+        const typeZones = {};
+        activeTypes.forEach((type, i) => {
+            const zoneCenter = -spawnRange / 2 + typeSpacing * (i + 0.5);
+            typeZones[type] = zoneCenter;
         });
 
-        body.angularDamping = 0.3;
-        body.linearDamping = 0.3;
-        setupDiePhysics(body);
-        world.addBody(body);
-
-        const debugMesh = createPhysicsDebugMesh(body);
-        debugMesh.scale.set(1.1, 1.1, 1.1);
-        debugMesh.visible = debugMode;
-
-        dice.push({
-            type,
-            mesh,
-            body,
-            debugMesh,
-            geometry: def.geometry,
-            faceToValue: def.faceToValue,
-            facesPerNumber: def.facesPerNumber
-        });
-
-        diceResults.push(null);
-    }
-
-    // Loop through and spawn dice by type
-    for (const type of activeTypes) {
-        for (let i = 0; i < diceTypeCounts[type]; i++) {
-            spawnDie(type);
+        for (const type of activeTypes) {
+            const count = diceTypeCounts[type];
+            const zoneCenter = typeZones[type];
+            spawnDieSet(type, count, zoneCenter, totalDice);
         }
     }
 }
@@ -404,7 +416,8 @@ function respawnDie(die) {
 }
 
 
-function checkDiceStopped() {
+
+function detectDiceState() {
     let allStopped = true;
 
     dice.forEach((d, i) => {
@@ -424,124 +437,154 @@ function checkDiceStopped() {
         }
     });
 
+    return allStopped;
+}
+
+function checkDiceStopped() {
+    const allStopped = detectDiceState();
+
     if (allStopped && diceResults.every(x => x !== null)) {
-        const labelBar = document.getElementById('labelBar');
-        const svg = document.getElementById('lineOverlay');
+        renderResults();
+    }
+}
 
-        labelBar.innerHTML = '';
-        while (svg.firstChild) svg.removeChild(svg.firstChild);
+function renderTotalResult(labelBar, total) {
+    if (ADD_COUNT) {
+        const bonusLabel = document.createElement('div');
+        bonusLabel.className = 'die-label';
+        bonusLabel.textContent = `+${ADD_COUNT}`;
+        labelBar.appendChild(bonusLabel);
+    }
 
+    const totalLabel = document.createElement('div');
+    totalLabel.className = 'die-label';
+    totalLabel.textContent = `= ${total}`;
+    labelBar.appendChild(totalLabel);
+
+    document.getElementById('result').innerText = '';
+}
+
+function renderDieLabel(labelBar, die, isD20 = false) {
+    const label = document.createElement('div');
+    label.className = 'die-label';
+    label.textContent = die.result;
+
+    const color = DIE_COLORS[die.type] || '#ffffff';
+    label.style.backgroundColor = color;
+    label.style.color = '#000';
+
+    if (isD20) {
+        label.style.border = '2px dashed #888';
+    } else {
+        label.style.border = '2px solid white';
+    }
+
+    labelBar.appendChild(label);
+    die.label = label;
+}
+
+function renderResults() {
+    const labelBar = document.getElementById('labelBar');
+    const svg = document.getElementById('lineOverlay');
+
+    labelBar.innerHTML = '';
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    if (diceResults.length > 20) {
         const total = diceResults.reduce((sum, val) => sum + val, 0) + ADD_COUNT;
 
-        if (diceResults.length > 20) {
-            // 🧮 Bucket by value
-            const buckets = {};
-            dice.forEach((d, i) => {
-                const value = diceResults[i];
-                const key = `${value}`;
-                if (!buckets[key]) buckets[key] = { count: 0, color: DIE_COLORS[d.type] || '#fff' };
-                buckets[key].count++;
-            });
+        const buckets = {};
+        dice.forEach((d, i) => {
+            const value = diceResults[i];
+            const key = `${value}`;
+            if (!buckets[key]) buckets[key] = { count: 0, color: DIE_COLORS[d.type] || '#fff' };
+            buckets[key].count++;
+        });
 
-            // 📋 Display bucket labels
-            Object.keys(buckets).sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
-                const { count, color } = buckets[key];
-                const label = document.createElement('div');
-                label.className = 'die-label';
-                label.textContent = `${count}×${key}`;
-                label.style.backgroundColor = color;
-                label.style.border = '2px solid white';
-                label.style.color = '#000';
-                labelBar.appendChild(label);
-            });
+        Object.keys(buckets).sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+            const { count, color } = buckets[key];
+            const label = document.createElement('div');
+            label.className = 'die-label';
+            label.textContent = `${count}×${key}`;
+            label.style.backgroundColor = color;
+            label.style.border = '2px solid white';
+            label.style.color = '#000';
+            labelBar.appendChild(label);
+        });
 
-            // ➕ Bonus
-            if (ADD_COUNT) {
-                const bonusLabel = document.createElement('div');
-                bonusLabel.className = 'die-label';
-                bonusLabel.textContent = `+${ADD_COUNT}`;
-                labelBar.appendChild(bonusLabel);
-            }
+        renderTotalResult(labelBar, total);
 
-            // 🧮 Total
-            const totalLabel = document.createElement('div');
-            totalLabel.className = 'die-label';
-            totalLabel.textContent = `= ${total}`;
-            labelBar.appendChild(totalLabel);
+        return;
+    }
 
-            document.getElementById('result').innerText = '';
-            return; // ✅ Skip lines below!
-        }
+    let total = 0;
+    let d20Results = [];
+    let dieData = [];
 
-        // ELSE: Original display with individual results
-        const dieData = dice.map((d, i) => ({
-            result: diceResults[i],
+    dice.forEach((d, i) => {
+        const result = diceResults[i];
+        const dieInfo = {
+            result: result,
             screen: worldToScreenPos(d.mesh.position.clone(), camera),
             mesh: d.mesh,
             type: d.type
-        }));
+        };
 
-        const grouped = {};
-        dieData.forEach(d => {
-            if (!grouped[d.result]) grouped[d.result] = [];
-            grouped[d.result].push(d);
-        });
+        dieData.push(dieInfo);
 
-        Object.values(grouped).forEach(group => {
-            group.sort((a, b) => a.screen.x - b.screen.x);
-        });
-
-        const sortedData = Object.keys(grouped)
-            .map(Number)
-            .sort((a, b) => a - b)
-            .flatMap(key => grouped[key]);
-
-        sortedData.forEach(die => {
-            const label = document.createElement('div');
-            label.className = 'die-label';
-            label.textContent = die.result;
-
-            const color2 = DIE_COLORS[die.type] || '#ffffff';
-            label.style.backgroundColor = color2;
-            label.style.border = `2px solid white`;
-            label.style.color = '#000';
-
-            labelBar.appendChild(label);
-            die.label = label;
-        });
-
-        if (ADD_COUNT) {
-            const bonusLabel = document.createElement('div');
-            bonusLabel.className = 'die-label';
-            bonusLabel.textContent = `+${ADD_COUNT}`;
-            labelBar.appendChild(bonusLabel);
+        if (diceTypes[d.type].faceCount === 20) {
+            d20Results.push(dieInfo);
+        } else {
+            total += result;
         }
+    });
 
-        const totalLabel = document.createElement('div');
-        totalLabel.className = 'die-label';
-        totalLabel.textContent = `= ${total}`;
-        labelBar.appendChild(totalLabel);
+    total += ADD_COUNT;
 
-        document.getElementById('result').innerText = '';
+    const grouped = {};
+    dieData.forEach(d => {
+        if (!grouped[d.result]) grouped[d.result] = [];
+        grouped[d.result].push(d);
+    });
 
-        const labelBarRect = labelBar.getBoundingClientRect();
-        sortedData.forEach(die => {
-            const labelRect = die.label.getBoundingClientRect();
-            const labelX = labelRect.left + labelRect.width / 2;
-            const labelY = labelBarRect.bottom;
+    Object.values(grouped).forEach(group => {
+        group.sort((a, b) => a.screen.x - b.screen.x);
+    });
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', labelX);
-            line.setAttribute('y1', labelY);
-            line.setAttribute('x2', die.screen.x);
-            line.setAttribute('y2', die.screen.y);
-            const color = DIE_COLORS[die.type] || '#ffffff';
+    const sortedData = Object.keys(grouped)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .flatMap(key => grouped[key]);
 
-            line.setAttribute('stroke', color);
-            line.setAttribute('stroke-width', '1.5');
-            svg.appendChild(line);
-        });
-    }
+    sortedData.forEach(die => {
+        if (diceTypes[die.type].faceCount !== 20) {
+            renderDieLabel(labelBar, die, false);
+        }
+    });
+
+    renderTotalResult(labelBar, total)
+
+    d20Results.forEach(die => {
+        renderDieLabel(labelBar, die, true);
+    });
+
+    const labelBarRect = labelBar.getBoundingClientRect();
+    sortedData.forEach(die => {
+        const labelRect = die.label.getBoundingClientRect();
+        const labelX = labelRect.left + labelRect.width / 2;
+        const labelY = labelBarRect.bottom;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', labelX);
+        line.setAttribute('y1', labelY);
+        line.setAttribute('x2', die.screen.x);
+        line.setAttribute('y2', die.screen.y);
+        const color = DIE_COLORS[die.type] || '#ffffff';
+
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '1.5');
+        svg.appendChild(line);
+    });
 }
 
 function resetDice() {
@@ -584,10 +627,34 @@ const updateUI = () => {
 };
 
 export const changeCount = (type, delta) => {
-    if (diceTypeCounts.hasOwnProperty(type)) {
-        diceTypeCounts[type] = Math.max(0, diceTypeCounts[type] + delta);
-        updateUI();
+    if (!diceTypeCounts.hasOwnProperty(type)) return;
+
+    // Apply the change
+    diceTypeCounts[type] = Math.max(0, Math.min(MAX_DICE, diceTypeCounts[type] + delta));
+
+    // Calculate new total
+    const total = Object.values(diceTypeCounts).reduce((sum, n) => sum + n, 0);
+
+    // If we're over the limit, trim the excess
+    const excess = total - MAX_DICE;
+    if (excess > 0) {
+        let maxType = null;
+        let maxCount = -Infinity;
+
+        for (const t in diceTypeCounts) {
+            if (t === type) continue; // skip the just-modified type
+            if (diceTypeCounts[t] > maxCount) {
+                maxCount = diceTypeCounts[t];
+                maxType = t;
+            }
+        }
+
+        if (maxType) {
+            diceTypeCounts[maxType] = Math.max(0, diceTypeCounts[maxType] - excess);
+        }
     }
+
+    updateUI();
 };
 
 window.changeCount = changeCount;
@@ -720,7 +787,7 @@ presets.forEach(preset => {
     btn.className = 'preset-button';
     btn.textContent = preset.label;
     btn.addEventListener('click', () => {
-        setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6, preset.d4, preset.additive || false);
+        setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6, preset.d4, preset.additive ?? false);
     });
     presetContainer.appendChild(btn);
 });

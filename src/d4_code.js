@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import * as CANNON from 'cannon-es';
-
+import {
+    DIE_DRAW_COLORS
+} from "./config.js"
 const D4_SCALE = 0.5; // or try 0.25 if still too big
 
 export function createPhysicsD4Shape() {
@@ -100,7 +102,8 @@ export function createNumberedD4AtlasTexture() {
         { x: 0.82, y: 0.88 }, // Bottom right
     ];
 
-    ctx.fillStyle = '#ffffff';
+    // ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = DIE_DRAW_COLORS['d4'];
     ctx.font = 'bold 56px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

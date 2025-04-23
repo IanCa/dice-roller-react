@@ -1,6 +1,11 @@
 // D10 creation
 import * as THREE from "three";
 import * as CANNON from 'cannon-es';
+import {
+    DIE_DRAW_COLORS
+} from "./config.js"
+
+const D10_SCALE = 0.7;
 
 export function createNumberedD10AtlasTexture() {
     const canvas = document.createElement('canvas');
@@ -13,12 +18,12 @@ export function createNumberedD10AtlasTexture() {
         const number = i + 1;
 
         // Background
-        ctx.fillStyle = '#ffe0cc';
+        ctx.fillStyle = DIE_DRAW_COLORS['d10'];
         ctx.fillRect(x, 0, 128, 128);
 
         // Digit
         ctx.fillStyle = '#000';
-        ctx.font = 'bold 64px sans-serif';
+        ctx.font = 'bold 48px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(number.toString(), x + 64, 64);
@@ -49,9 +54,9 @@ export function createNumberedD10Geometry() {
     const verts = [];
     const faces = [];
 
-    const top = new THREE.Vector3(0, 1, 0);
-    const bottom = new THREE.Vector3(0, -1, 0);
-    const radius = 1;
+    const top = new THREE.Vector3(0, 1 * D10_SCALE, 0);
+    const bottom = new THREE.Vector3(0, -1 * D10_SCALE, 0);
+    const radius = D10_SCALE;
     const angleStep = Math.PI * 2 / 5;
 
     // Create 5 equator vertices in a regular pentagon
@@ -146,7 +151,7 @@ export function createNumberedD10Geometry() {
 }
 
 export function createPhysicsD10Shape() {
-    const radius = 1.0;
+    const radius = D10_SCALE;
     const numEquatorVerts = 5;
 
     const verts = [];
@@ -157,8 +162,8 @@ export function createPhysicsD10Shape() {
     };
 
     // Top and bottom poles (aligned with Z axis originally, now aligned with Y)
-    verts.push(rotateX90(new CANNON.Vec3(0, 0, 1.0)));  // Vertex 0 (Top pole)
-    verts.push(rotateX90(new CANNON.Vec3(0, 0, -1.0))); // Vertex 1 (Bottom pole)
+    verts.push(rotateX90(new CANNON.Vec3(0, 0, radius)));  // Vertex 0 (Top pole)
+    verts.push(rotateX90(new CANNON.Vec3(0, 0, -radius))); // Vertex 1 (Bottom pole)
 
     // Equator vertices arranged in a regular pentagon around Z axis, rotated
     for (let i = 0; i < numEquatorVerts; i++) {

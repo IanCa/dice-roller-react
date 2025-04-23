@@ -255,7 +255,7 @@ canvas {
     }
 }
 
-@media (min-device-width: 768px) {
+@media (min-width: 768px) {
     .count-display {
         font-size: 24px;
         width: 36px;

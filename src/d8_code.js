@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import {
+    DIE_DRAW_COLORS
+} from "./config.js"
 
 const D8_SCALE = 0.7;
 
@@ -116,10 +119,10 @@ export function createNumberedAtlasTexture() {
 
     for (let i = 0; i < 8; i++) {
         const x = i * 128;
-        ctx.fillStyle = '#00ffcc';
+        ctx.fillStyle = DIE_DRAW_COLORS['d8'];
         ctx.fillRect(x, 0, 128, 128);
         ctx.fillStyle = '#000';
-        ctx.font = 'bold 64px sans-serif';
+        ctx.font = 'bold 48px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText((i + 1).toString(), x + 64, 64);
