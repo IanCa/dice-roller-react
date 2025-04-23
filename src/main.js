@@ -44,7 +44,7 @@ import {
 
 const urlParams = new URLSearchParams(window.location.search);
 
-const D4_COUNT = parseInt(urlParams.get('d4')) || 5;
+const D4_COUNT = parseInt(urlParams.get('d4')) || 0;
 const D6_COUNT = parseInt(urlParams.get('d6')) || 0;
 const D8_COUNT = parseInt(urlParams.get('d8')) || 0;
 const D10_COUNT = parseInt(urlParams.get('d10')) || 0;
@@ -63,24 +63,28 @@ let diceTypeCounts = {
     d20: D20_COUNT
 };
 
-if (dice_string != "") {
-    let loaded_dice = parseDndDiceNotation(dice_string);
-    for (let key in diceTypeCounts) {
-        if (key.startsWith("d")) {
-            diceTypeCounts[key] = 0;
-            ADD_COUNT = 0;
+tryLoadDiceParameter();
+
+function tryLoadDiceParameter() {
+    if (dice_string != "") {
+        let loaded_dice = parseDndDiceNotation(dice_string);
+        for (let key in diceTypeCounts) {
+            if (key.startsWith("d")) {
+                diceTypeCounts[key] = 0;
+                ADD_COUNT = 0;
+            }
+        }
+
+        for (let key in loaded_dice) {
+            if (key.startsWith("d")) {
+                diceTypeCounts[key] = loaded_dice[key];
+            } else {
+                ADD_COUNT = loaded_dice[key];
+            }
         }
     }
-
-    for (let key in loaded_dice) {
-        if (key.startsWith("d")) {
-            diceTypeCounts[key] = loaded_dice[key];
-        } else {
-            ADD_COUNT = loaded_dice[key];
-        }
-    }
-
 }
+
 
 if (Object.values(diceTypeCounts).every(count => count === 0)) {
     diceTypeCounts.d8 = 2; // default fallback
@@ -674,25 +678,37 @@ document.addEventListener('click', function (event) {
 
 
 const presets = [
-    { label: '1d20', d8: 0, d6: 0, d10:0, d12:0, d20:1, d4:0 },
-    { label: '2d20', d8: 0, d6: 0, d10:0, d12:0, d20:2, d4:0 },
-    { label: 'Fireball', d8: 0, d6: 8, d10:0, d12:0, d20:0, d4:0 },
-    { label: 'Smite 1', d8: 2, d6: 0, d10:0, d12:0, d20:0, d4:0 },
-    { label: 'Smite 2', d8: 3, d6: 0, d10:0, d12:0, d20:0, d4:0 },
-    { label: 'Smite 3', d8: 4, d6: 0, d10:0, d12:0, d20:0, d4:0 },
-    { label: 'Smite 4', d8: 5, d6: 0, d10:0, d12:0, d20:0, d4:0 },
-    { label: 'Max Demo', d8: 10, d6: 10, d10:0, d12:0, d20:0, d4:0 },
-    { label: '1000', d8: 0, d6: 1000, d10:0, d12:0, d20:0, d4:0 },
+    { label: '1d20', d8: 0, d6: 0, d10: 0, d12: 0, d20: 1, d4: 0 },
+    { label: '2d20', d8: 0, d6: 0, d10: 0, d12: 0, d20: 2, d4: 0 },
+    { label: 'Fireball', d8: 0, d6: 8, d10: 0, d12: 0, d20: 0, d4: 0 },
+    { label: '+Smite 1', d8: 2, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
+    { label: '+Smite 2', d8: 3, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
+    { label: '+Smite 3', d8: 4, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
+    { label: '+Smite 4', d8: 5, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
+    { label: 'Max Demo', d8: 10, d6: 10, d10: 0, d12: 0, d20: 0, d4: 0 },
+    { label: '1000', d8: 0, d6: 1000, d10: 0, d12: 0, d20: 0, d4: 0 },
 ];
 
-function setDiceCounts(d20, d12, d10, d8, d6, d4) {
-    diceTypeCounts.d4 = d4
-    diceTypeCounts.d6 = d6
-    diceTypeCounts.d8 = d8
-    diceTypeCounts.d10 = d10
-    diceTypeCounts.d12 = d12
-    diceTypeCounts.d20 = d20
-    ADD_COUNT = 0
+// Update function to optionally add to existing counts
+function setDiceCounts(d20, d12, d10, d8, d6, d4, additive = false) {
+    if (additive) {
+        tryLoadDiceParameter();
+        diceTypeCounts.d4 += d4;
+        diceTypeCounts.d6 += d6;
+        diceTypeCounts.d8 += d8;
+        diceTypeCounts.d10 += d10;
+        diceTypeCounts.d12 += d12;
+        diceTypeCounts.d20 += d20;
+    } else {
+        diceTypeCounts.d4 = d4;
+        diceTypeCounts.d6 = d6;
+        diceTypeCounts.d8 = d8;
+        diceTypeCounts.d10 = d10;
+        diceTypeCounts.d12 = d12;
+        diceTypeCounts.d20 = d20;
+        ADD_COUNT = 0;
+    }
+
     updateUI();
 }
 
@@ -703,7 +719,9 @@ presets.forEach(preset => {
     const btn = document.createElement('button');
     btn.className = 'preset-button';
     btn.textContent = preset.label;
-    btn.addEventListener('click', () => setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6, preset.d4));
+    btn.addEventListener('click', () => {
+        setDiceCounts(preset.d20, preset.d12, preset.d10, preset.d8, preset.d6, preset.d4, preset.additive || false);
+    });
     presetContainer.appendChild(btn);
 });
 
