@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import * as CANNON from 'cannon-es';
 import {
-    DIE_DRAW_COLORS
+    DIE_COLORS
 } from "./config.js"
 
 const D10_SCALE = 0.7;
@@ -18,7 +18,7 @@ export function createNumberedD10AtlasTexture() {
         const number = i + 1;
 
         // Background
-        ctx.fillStyle = DIE_DRAW_COLORS['d10'];
+        ctx.fillStyle = DIE_COLORS['d10'];
         ctx.fillRect(x, 0, 128, 128);
 
         // Digit
@@ -54,9 +54,10 @@ export function createNumberedD10Geometry() {
     const verts = [];
     const faces = [];
 
-    const top = new THREE.Vector3(0, 1 * D10_SCALE, 0);
-    const bottom = new THREE.Vector3(0, -1 * D10_SCALE, 0);
     const radius = D10_SCALE;
+    const top = new THREE.Vector3(0, radius, 0);
+    const bottom = new THREE.Vector3(0, -radius, 0);
+
     const angleStep = Math.PI * 2 / 5;
 
     // Create 5 equator vertices in a regular pentagon
@@ -224,8 +225,13 @@ export function getTopFaceIndexForD10(quat, dice_geometry) {
     // Get top 2 candidates
     const topTwo = faceNormals.slice(0, 2);
 
-    // Pick one randomly
-    const chosen = Math.random() < 0.5 ? topTwo[0] : topTwo[1];
+    // Threshold for similarity (adjust as needed)
+    const threshold = 0.01;
+
+    // If the difference is small, pick randomly
+    const chosen = (topTwo[0].dot - topTwo[1].dot < threshold)
+        ? (Math.random() < 0.5 ? topTwo[0] : topTwo[1])
+        : topTwo[0]; // Otherwise, go with the most upward-facing
 
     return chosen.index;
 }

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import * as CANNON from 'cannon-es';
 
 import {
-    DIE_DRAW_COLORS
+    DIE_COLORS
 } from "./config.js"
 
 // D12 creation
@@ -19,7 +19,7 @@ export function createNumberedD12AtlasTexture() {
         const number = i + 1;
 
         // Background
-        ctx.fillStyle = DIE_DRAW_COLORS['d12'];
+        ctx.fillStyle = DIE_COLORS['d12'];
         ctx.fillRect(x, 0, tileSize, tileSize);
 
         // Save context for transformations

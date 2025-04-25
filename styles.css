@@ -60,10 +60,12 @@ canvas {
     z-index: 1;
 }
 
+
+
 /* Controls (Reset + Dice Count) */
 #controls-wrapper {
     position: absolute;
-    bottom: 10px;
+    bottom: 50px;
     left: 10px;
     display: flex;
     flex-direction: row;
@@ -255,7 +257,7 @@ canvas {
     }
 }
 
-@media (min-width: 768px) {
+@media (min-device-width: 768px) or (orientation: landscape) {
     .count-display {
         font-size: 24px;
         width: 36px;

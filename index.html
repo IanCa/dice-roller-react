@@ -10,58 +10,60 @@
 <div id="result">Rolling...</div>
 <div id="labelBar"></div>
 <svg id="lineOverlay"></svg>
-<!-- 🎮 Mobile-friendly Controls -->
+
 <div id="controls-wrapper">
-<div id="controls">
-  <div class="control-row">
-    <span class="control-label">D4:</span>
-    <button class="control-button" onclick="changeCount('d4', -1)">−</button>
-    <span class="count-display" id="d4Count">0</span>
-    <button class="control-button" onclick="changeCount('d4', 1)">+</button>
+  <div id="controls">
+    <div class="control-row">
+      <span class="control-label">D4:</span>
+      <button class="control-button" onclick="changeCount('d4', -1)">−</button>
+      <span class="count-display" id="d4Count">0</span>
+      <button class="control-button" onclick="changeCount('d4', 1)">+</button>
+    </div>
+    <div class="control-row">
+      <span class="control-label">D6:</span>
+      <button class="control-button" onclick="changeCount('d6', -1)">−</button>
+      <span class="count-display" id="d6Count">0</span>
+      <button class="control-button" onclick="changeCount('d6', 1)">+</button>
+    </div>
+    <div class="control-row">
+      <span class="control-label">D8:</span>
+      <button class="control-button" onclick="changeCount('d8', -1)">−</button>
+      <span class="count-display" id="d8Count">0</span>
+      <button class="control-button" onclick="changeCount('d8', 1)">+</button>
+    </div>
+    <div class="control-row">
+      <details class="d10-details" id="d10-details">
+        <summary class="control-label">
+          D10:<span class="warning-icon">⚠️</span>
+        </summary>
+        <div class="popup">
+          D10 is a weird fucking shape and this simulates a 5 sided double pyramid instead, then randomly picks between the top two faces.
+        </div>
+      </details>
+      <button class="control-button" onclick="changeCount('d10', -1)">−</button>
+      <span class="count-display" id="d10Count">0</span>
+      <button class="control-button" onclick="changeCount('d10', 1)">+</button>
+    </div>
+    <div class="control-row">
+      <span class="control-label">D12:</span>
+      <button class="control-button" onclick="changeCount('d12', -1)">−</button>
+      <span class="count-display" id="d12Count">0</span>
+      <button class="control-button" onclick="changeCount('d12', 1)">+</button>
+    </div>
+    <div class="control-row">
+      <span class="control-label">D20:</span>
+      <button class="control-button" onclick="changeCount('d20', -1)">−</button>
+      <span class="count-display" id="d20Count">0</span>
+      <button class="control-button" onclick="changeCount('d20', 1)">+</button>
+    </div>
+    <button id="resetButton">🎲 Roll</button>
   </div>
-  <div class="control-row">
-    <span class="control-label">D6:</span>
-    <button class="control-button" onclick="changeCount('d6', -1)">−</button>
-    <span class="count-display" id="d6Count">0</span>
-    <button class="control-button" onclick="changeCount('d6', 1)">+</button>
+  <div id="presets">
+    <!-- Preset buttons injected by JS -->
   </div>
-  <div class="control-row">
-    <span class="control-label">D8:</span>
-    <button class="control-button" onclick="changeCount('d8', -1)">−</button>
-    <span class="count-display" id="d8Count">0</span>
-    <button class="control-button" onclick="changeCount('d8', 1)">+</button>
-  </div>
-  <div class="control-row">
-    <details class="d10-details" id="d10-details">
-      <summary class="control-label">
-        D10:<span class="warning-icon">⚠️</span>
-      </summary>
-      <div class="popup">
-        D10 is a weird fucking shape and this simulates a 5 sided double pyramid instead, then randomly picks between the top two faces.
-      </div>
-    </details>
-    <button class="control-button" onclick="changeCount('d10', -1)">−</button>
-    <span class="count-display" id="d10Count">0</span>
-    <button class="control-button" onclick="changeCount('d10', 1)">+</button>
-  </div>
-  <div class="control-row">
-    <span class="control-label">D12:</span>
-    <button class="control-button" onclick="changeCount('d12', -1)">−</button>
-    <span class="count-display" id="d12Count">0</span>
-    <button class="control-button" onclick="changeCount('d12', 1)">+</button>
-  </div>
-  <div class="control-row">
-    <span class="control-label">D20:</span>
-    <button class="control-button" onclick="changeCount('d20', -1)">−</button>
-    <span class="count-display" id="d20Count">0</span>
-    <button class="control-button" onclick="changeCount('d20', 1)">+</button>
-  </div>
-  <button id="resetButton">🎲 Roll</button>
 </div>
-<div id="presets">
-  <!-- Preset buttons injected by JS -->
 </div>
-</div>
+
 <script type="module" src="./src/main.js">
 
 </script>
