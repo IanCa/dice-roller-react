@@ -64,9 +64,9 @@ export default function Game_loop() {
         });
     }, [debugMode]);
 
-    useEffect(() => {
-        console.log('dice_results updated:', dice_results);
-    }, [dice_results]);
+    // useEffect(() => {
+    //     console.log('dice_results updated:', dice_results);
+    // }, [dice_results]);
 
     useEffect(() => {
         if (lastUpdateFromUrl) {
@@ -98,6 +98,8 @@ export default function Game_loop() {
         };
     }, []);
 
+    let diceUpdateDelta = 0;
+
     function animate() {
         frameRef.current = requestAnimationFrame(animate);
         const delta = clock.getDelta();
@@ -110,8 +112,18 @@ export default function Game_loop() {
             d.physics.debugMesh.quaternion.copy(d.physics.body.quaternion);
         });
 
-        const {allStopped, dice_results} = detectDiceState(world);
-        setDiceResults(dice_results);
+        if (world.dice.length > 100) {
+            diceUpdateDelta += delta;
+            if (diceUpdateDelta >= 1.0) {
+                const { allStopped, dice_results } = detectDiceState(world);
+                setDiceResults(dice_results);
+                diceUpdateDelta = 0; // reset after running
+            }
+        } else {
+            const {allStopped, dice_results} = detectDiceState(world);
+            setDiceResults(dice_results);
+        }
+
         controls.update();
         renderer.render(scene, camera);
     }

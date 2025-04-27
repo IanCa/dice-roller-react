@@ -35,6 +35,29 @@ function parseDndDiceNotation(notation) {
     return result;
 }
 
+function generateDndDiceNotation(dice_counts) {
+    const parts = [];
+
+    for (const [key, count] of Object.entries(dice_counts)) {
+        if (key === "add") {
+            if (count !== 0) {
+                parts.push((count > 0 ? `+${count}` : `${count}`));
+            }
+        } else {
+            if (count !== 0) {
+                parts.push((count > 0 ? `+${count}${key}` : `${count}${key}`));
+            }
+        }
+    }
+
+    // Join and clean up leading +
+    let notation = parts.join('');
+    if (notation.startsWith('+')) {
+        notation = notation.slice(1);
+    }
+    return notation;
+}
+
 export default function DiceCountProvider({ children }) {
     const location = useLocation();
 
@@ -56,7 +79,12 @@ export default function DiceCountProvider({ children }) {
     // wrapped setter
     const setDiceTypeCounts = (newCounts) => {
         setLastUpdateFromUrl(false); // manual updates set this false
-        _setDiceTypeCounts({ ...baseDiceDefaults, ...newCounts });
+        newCounts = {...baseDiceDefaults, ...newCounts}
+        const dice_notation = generateDndDiceNotation(newCounts)
+
+        window.history.replaceState(null, '', `#?dice=${dice_notation}`);
+
+        _setDiceTypeCounts(newCounts);
     };
 
     useEffect(() => {

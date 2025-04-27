@@ -118,6 +118,7 @@ export default function DiceResultsPanel() {
     const [finald20Total, setFinald20Total] = useState(0);
     const {diceTypeCounts} = useContext(DiceCountContext);
 
+    // todo: Improve the stats and more properly split out the d20 results.
     // Todo: probably move "add" out from dicetypecounts
     // Todo: this could use more optimization for > 20 mode.(to skip the sort and screen calculations)
     useEffect(() => {

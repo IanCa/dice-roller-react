@@ -183,7 +183,7 @@
 }
 
 /* Optional: adjust on smaller screens */
-@media (max-device-width: 767px) {
+@media (max-width: 767px) {
     .popup {
         font-size: 25px;
         max-width: 90vw;
@@ -193,12 +193,13 @@
     }
 }
 
-@media (min-device-width: 768px) or (orientation: landscape) {
+@media (min-width: 768px) {
     .count-display {
         font-size: 24px;
         width: 36px;
         height: 36px;
     }
+
     .control-button {
         font-size: 24px;
         width: 36px;

@@ -1,7 +1,9 @@
+import { defineConfig } from 'vite';
+
 import react from '@vitejs/plugin-react'
 
 // vite.config.js
-export default {
+export default defineConfig ({
   base: '/dice-roller-react/',
   server: {
     open: true,
@@ -19,4 +21,4 @@ export default {
       )
     },
     plugins: [react()],
-};
+});
