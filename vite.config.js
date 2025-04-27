@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react'
 
 // vite.config.js
 export default {
-  base: '/dice-roller/', // replace with your actual GitHub repo name
+  base: '/dice-roller-react/',
   server: {
     open: true,
     sourcemap: true
