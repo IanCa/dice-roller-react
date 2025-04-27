@@ -1,9 +1,11 @@
+import react from '@vitejs/plugin-react'
+
 // vite.config.js
 export default {
   base: '/dice-roller/', // replace with your actual GitHub repo name
   server: {
     open: true,
-    sourcemap: true,
+    sourcemap: true
   },
     define: {
       __BUILD_TIME__: JSON.stringify(
@@ -15,5 +17,6 @@ export default {
             hour12: false,
           })
       )
-    }
+    },
+    plugins: [react()],
 };

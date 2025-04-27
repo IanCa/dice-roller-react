@@ -1,11 +1,9 @@
 import {diceTypes} from "./dice_types.js"
 import * as CANNON from "cannon-es";
-import {debugMode, diceMaterial, scene, world} from "./globals.js";
+// import {debugMode, diceMaterial, scene, world} from "./globals.js";
 import * as THREE from "three";
 
-export let dice = []
-
-function createPhysicsDebugMesh(body, color = 0xff0000) {
+function createPhysicsDebugMesh(scene, body, color = 0xff0000) {
     const shape = body.shapes[0];
     const geometry = new THREE.BufferGeometry();
     const vertices = [];
@@ -70,19 +68,25 @@ function setupDiePhysics(body) {
     body.wakeUp();
 }
 
-let wallBodies = [];
-let wallMeshes = [];
-
 function setupWalls(scene, world, extraWidth = 0) {
-    // Clear previous walls
-    for (const body of wallBodies) world.removeBody(body);
-    for (const mesh of wallMeshes) {
+    if (!world.walls) {
+        world.walls = {
+            bodies: [],
+            meshes: []
+        }
+    }
+    for (const body of world.walls.bodies) {
+        world.removeBody(body);
+    }
+    for (const mesh of world.walls.meshes) {
         scene.remove(mesh);
         mesh.geometry.dispose();
         mesh.material.dispose();
     }
-    wallBodies = [];
-    wallMeshes = [];
+
+    // Reset tracking arrays
+    world.walls.bodies = [];
+    world.walls.meshes = [];
 
     const baseSize = 30;
     const boundarySize = baseSize + extraWidth; // Extend size if needed
@@ -92,7 +96,7 @@ function setupWalls(scene, world, extraWidth = 0) {
         const body = new CANNON.Body({mass: 0, shape, position: pos});
         body.quaternion.setFromEuler(rot.x, rot.y, rot.z);
         world.addBody(body);
-        wallBodies.push(body);
+        world.walls.bodies.push(body);
 
         if (!skipVisual) {
             const geo = new THREE.BoxGeometry(size.x, size.y, size.z);
@@ -101,7 +105,7 @@ function setupWalls(scene, world, extraWidth = 0) {
             mesh.position.copy(pos);
             mesh.rotation.set(rot.x, rot.y, rot.z);
             scene.add(mesh);
-            wallMeshes.push(mesh);
+            world.walls.meshes.push(mesh);
         }
     }
 
@@ -113,7 +117,7 @@ function setupWalls(scene, world, extraWidth = 0) {
     createWall(new CANNON.Vec3(0, 5, boundarySize / 2), new CANNON.Vec3(0, 0, 0), {x: boundarySize, y: 10, z: 1}, true);
 }
 
-function spawnDie(x, y, z, type) {
+function spawnDie(x, y, z, type, scene, world, diceMaterial, debugMode) {
     const def = diceTypes[type];
 
     const mesh = new THREE.Mesh(def.geometry, def.material);
@@ -132,14 +136,16 @@ function spawnDie(x, y, z, type) {
     setupDiePhysics(body);
     world.addBody(body);
 
-    const debugMesh = createPhysicsDebugMesh(body);
+    const debugMesh = createPhysicsDebugMesh(scene, body);
     debugMesh.scale.set(1.1, 1.1, 1.1);
     debugMesh.visible = debugMode;
 
-    dice.push({type, mesh, body, debugMesh, geometry: def.geometry});
+    return {type,
+        physics: {mesh, body, debugMesh, geometry: def.geometry},
+        result: null}
 }
 
-function spawnDieSet(typeOrArray, count, zoneCenter, totalDice) {
+function spawnDieSet(typeOrArray, count, zoneCenter, totalDice, scene, world, diceMaterial, debugMode=false) {
     const baseSpacing = 1.5;
     const spacing = baseSpacing * (1 + Math.log2(totalDice + 1) * 0.2);
     const dicePerRow = Math.ceil(Math.sqrt(count));
@@ -148,6 +154,7 @@ function spawnDieSet(typeOrArray, count, zoneCenter, totalDice) {
         ? () => typeOrArray
         : (i) => typeOrArray[i];
 
+    const newDice = [];
     for (let i = 0; i < count; i++) {
         const row = Math.floor(i / dicePerRow);
         const col = i % dicePerRow;
@@ -159,12 +166,17 @@ function spawnDieSet(typeOrArray, count, zoneCenter, totalDice) {
         const yPos = 6 + Math.random() * 2;
         const zPos = localZ + (Math.random() - 0.5) * 0.4;
 
-        spawnDie(xPos, yPos, zPos, getType(i));
+        newDice.push(spawnDie(xPos, yPos, zPos, getType(i), scene, world, diceMaterial, debugMode));
     }
+    return newDice
 }
 
-export function createDiceSet(dice_counts) {
-    const totalDice = Object.values(dice_counts).reduce((sum, n) => sum + n, 0);
+export function createDiceSet(dice_counts, scene, world, diceMaterial, debugMode) {
+    actuallyResetDice(scene, world);
+    const dice_only = Object.fromEntries(
+        Object.entries(dice_counts).filter(([key]) => key.startsWith('d'))
+    );
+    const totalDice = Object.values(dice_only).reduce((sum, n) => sum + n, 0);
 
     const spawnScale = totalDice <= 40 ? 1 : Math.log2(totalDice / 20 + 1) + 1.5;
     const spawnRange = 12 * spawnScale;
@@ -174,12 +186,11 @@ export function createDiceSet(dice_counts) {
     }
 
     setupWalls(scene, world, wallExtra);
-    dice.length = 0;
-
+    const all_new_dice = []
     if (totalDice > 40) {
         // Flatten all dice into a single array with type info
         const allDice = [];
-        for (const [type, count] of Object.entries(dice_counts)) {
+        for (const [type, count] of Object.entries(dice_only)) {
             for (let i = 0; i < count; i++) {
                 allDice.push(type);
             }
@@ -187,10 +198,11 @@ export function createDiceSet(dice_counts) {
 
         // Sort by die type size (assumes type is like "d4", "d6", etc.)
         allDice.sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
-        spawnDieSet(allDice, allDice.length, 0, totalDice);
+        const newDice = spawnDieSet(allDice, allDice.length, 0, totalDice, scene, world, diceMaterial, debugMode);
+        all_new_dice.push(...newDice);
     } else {
         // Normal behavior: spawn dice by type in separate zones
-        const activeTypes = Object.keys(dice_counts).filter(type => dice_counts[type] > 0);
+        const activeTypes = Object.keys(dice_only).filter(type => dice_counts[type] > 0);
         const typeSpacing = spawnRange / activeTypes.length;
 
         const typeZones = {};
@@ -202,53 +214,55 @@ export function createDiceSet(dice_counts) {
         for (const type of activeTypes) {
             const count = dice_counts[type];
             const zoneCenter = typeZones[type];
-            spawnDieSet(type, count, zoneCenter, totalDice);
+            const newDice = spawnDieSet(type, count, zoneCenter, totalDice, scene, world, diceMaterial, debugMode);
+            all_new_dice.push(...newDice);
         }
     }
+
+    world.dice = all_new_dice;
 }
 
 function respawnDie(die) {
-    die.body.position.set(
+    die.physics.body.position.set(
         (Math.random() - 0.5) * 5,
         6 + Math.random() * 3,
         (Math.random() - 0.5) * 5
     );
-    setupDiePhysics(die.body);
+    setupDiePhysics(die.physics.body);
 }
-let dice_results = []
 
-export function detectDiceState() {
+export function detectDiceState(world) {
     let allStopped = true;
 
-    if (dice_results.length !== dice.length) {
-        dice_results = Array(dice.length).fill(null);
-    }
-    dice.forEach((d, i) => {
-        if (d.body.position.y < -10) {
+    let dice_results = Array(world.dice.length).fill(null);
+
+    world.dice.forEach((d, i) => {
+        if (d.physics.body.position.y < -10) {
             respawnDie(d);
             allStopped = false;
             return;
         }
 
-        const velocity = d.body.velocity.length();
-        const angular = d.body.angularVelocity.length();
+        const velocity = d.physics.body.velocity.length();
+        const angular = d.physics.body.angularVelocity.length();
         if (velocity > 0.05 || angular > 0.05) {
-            allStopped = false;
-        } else if (dice_results[i] === null) {
-            dice_results[i] = diceTypes[d.type].getTopFaceIndex(d.body.quaternion, diceTypes[d.type].geometry) + 1;
+            dice_results[i] = d.result
+        } else if (d.result === null) {
+            dice_results[i] = [diceTypes[d.type].getTopFaceIndex(d.physics.body.quaternion, diceTypes[d.type].geometry) + 1, d.type, d.physics.body.position.x, d.physics.body.position.y, d.physics.body.position.z]
+            d.result = dice_results[i]
+        } else {
+            dice_results[i] = d.result
         }
     });
 
     return {allStopped, dice_results};
 }
 
-export function actuallyResetDice() {
+export function actuallyResetDice(scene, world) {
     // Remove dice meshes and bodies
-    dice.forEach(({mesh, body, debugMesh}) => {
-        scene.remove(mesh);
-        scene.remove(debugMesh);
-        world.removeBody(body);
+    world.dice.forEach(({physics}) => {
+        scene.remove(physics.mesh);
+        scene.remove(physics.debugMesh);
+        world.removeBody(physics.body);
     });
-
-    dice_results = []
 }
