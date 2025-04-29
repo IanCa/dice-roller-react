@@ -1,18 +1,23 @@
 #topBar {
     position: absolute;
-    top: 10px;
+    top: 0px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     gap: 10px;
     align-items: center;
     z-index: 11;
+    max-width: 100vw;
+    overflow-x: hidden;
 }
 
 #labelBar {
     display: flex;
     flex-direction: row;
     gap: 10px;
+    overflow-x: auto;
+    max-width: 100vw;
+    padding-bottom: 4px;
 }
 
 .die-label {
@@ -56,4 +61,56 @@
     border-radius: 4px;
     white-space: nowrap;
     font-weight: bold;
+}
+
+.result-panel,
+.result-complete,
+.luck-panel {
+    max-width: 100vw; /* <- Ensures they don't grow beyond the screen */
+    box-sizing: border-box; /* <- Important to respect padding inside width */
+    overflow-wrap: break-word; /* <- Break long words if needed */
+}
+
+
+@media (max-width: 767px) {
+    #topBar {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        z-index: 11;
+    }
+
+    #labelBar {
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .die-label {
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
+
+    .result-panel {
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
+
+    .result-complete {
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
+
+    .luck-panel {
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
 }

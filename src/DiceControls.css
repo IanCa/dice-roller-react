@@ -1,15 +1,12 @@
 /* Controls (Reset + Dice Count) */
 #controls-wrapper {
-    position: absolute;
-    bottom: 50px;
-    left: 10px;
+    position: static;
     display: flex;
     flex-direction: row;
     gap: 16px;
     background: rgba(0, 0, 0, 0.6);
     padding: 12px;
     border-radius: 10px;
-    z-index: 20;
     flex-wrap: wrap;
 }
 
@@ -37,8 +34,10 @@
 }
 
 .count-display {
-    font-size: 36px;
-    min-width: 48px;
+    font-size: 24px;
+    width: 36px;
+    height: 36px;
+
     text-align: center;
     color: white;
     font-weight: bold;
@@ -47,9 +46,9 @@
 .control-button {
     background: white;
     border: none;
-    font-size: 36px;               /* Bigger text/icon */
-    width: 72px;                   /* Larger touch target */
-    height: 72px;
+    font-size: 24px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
     cursor: pointer;
     display: flex;
@@ -183,26 +182,61 @@
 }
 
 /* Optional: adjust on smaller screens */
-@media (max-width: 767px) {
-    .popup {
-        font-size: 25px;
-        max-width: 90vw;
-        white-space: normal;
-        left: 0;
-        right: auto;
-    }
-}
+/*@media (max-width: 767px) {*/
+/*    .popup {*/
+/*        font-size: 25px;*/
+/*        max-width: 90vw;*/
+/*        white-space: normal;*/
+/*        left: 0;*/
+/*        right: auto;*/
+/*    }*/
+/*}*/
 
-@media (min-width: 768px) {
+@media (max-width: 767px) {
+    #controls-wrapper {
+        padding: 6px; /* was 12px */
+        gap: 6px;     /* was 16px */
+    }
+
+    #controls {
+        gap: 6px; /* was 10px */
+    }
+
+    .control-row {
+        gap: 6px;        /* was 16px */
+        padding: 2px 0;  /* was 4px 0 */
+    }
+
+    .control-label {
+        font-size: 16px;   /* was 20px */
+        min-width: 30px;   /* was 40px */
+    }
+
     .count-display {
-        font-size: 24px;
-        width: 36px;
-        height: 36px;
+        font-size: 18px; /* was 24px */
+        width: 28px;     /* was 36px */
+        height: 28px;
     }
 
     .control-button {
-        font-size: 24px;
-        width: 36px;
-        height: 36px;
+        font-size: 18px; /* was 24px */
+        width: 28px;
+        height: 28px;
+    }
+
+    #presets {
+        gap: 4px; /* was 6px */
+    }
+
+    .preset-button {
+        font-size: 12px; /* was clamp(12px, 2vw, 16px), clamp can stay or fix */
+        min-width: 80px; /* was 100px */
+        padding: 4px 8px; /* was 6px 10px */
+    }
+
+    #resetButton {
+        font-size: 18px; /* was 24px */
+        height: 48px;    /* was 72px */
+        padding: 0 16px; /* was 0 24px */
     }
 }

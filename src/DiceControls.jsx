@@ -86,7 +86,7 @@ export default function DiceControls({ onRequestReset }) {
                                     D10:<span className="warning-icon">⚠️</span>
                                 </summary>
                                 <div className="popup">
-                                    D10 is a weird fucking shape and this simulates a 5-sided double pyramid instead,
+                                    D10 is a weird shape and this simulates a 5-sided double pyramid instead,
                                     then randomly picks between the top two faces.
                                 </div>
                             </details>

@@ -100,11 +100,97 @@ function calculateLuckPercentile({
             betterOrEqualResults += count;
         }
     }
+    // console.log('combinations ', totalCombinations, "success ", betterOrEqualResults);
 
     if (totalCombinations === 0n) return 0;
 
     const rawPercent = (betterOrEqualResults * 10000n) / totalCombinations;
     return (Number(rawPercent) / 100).toFixed(2);
+}
+
+
+function processDiceResults(dice_results, camera) {
+    let total = 0;
+    let d20Total = 0;
+
+    const dieData = dice_results
+        .map((die, i) => {
+            if (!die) return null;
+            const [result, type, x, y, z] = die;
+            const screen = worldToScreenPos(x, y, z, camera);
+
+            if (type !== "d20") {
+                total += result;
+            } else {
+                d20Total += result;
+            }
+
+            return { result, type, screen, index: i, x, y, z };
+        })
+        .filter(Boolean);
+
+    const grouped = {};
+    dieData.forEach(d => {
+        if (!grouped[d.result]) grouped[d.result] = [];
+        grouped[d.result].push(d);
+    });
+
+    Object.values(grouped).forEach(group => {
+        group.sort((a, b) => a.screen.x - b.screen.x);
+    });
+
+    const sortedData = Object.keys(grouped)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .flatMap(key => grouped[key]);
+
+    return { total, d20Total, sortedData };
+}
+
+
+function buildLines(sortedDice, labelRefs, camera) {
+    if (!sortedDice.length) return [];
+
+    if (sortedDice.length > 20) {
+        const buckets = {};
+
+        sortedDice.forEach(die => {
+            const key = `${die.result}`;
+            if (!buckets[key]) {
+                buckets[key] = { count: 0, color: DIE_COLORS[die.type] || '#ffffff' };
+            }
+            buckets[key].count++;
+        });
+
+        return Object.keys(buckets)
+            .sort((a, b) => parseInt(a) - parseInt(b))
+            .map(key => ({
+                index: key,
+                value: key,
+                count: buckets[key].count,
+                color: buckets[key].color,
+            }));
+    }
+
+    return sortedDice.map(die => {
+        const labelElement = labelRefs.current[die.index];
+        if (!labelElement) return null;
+
+        const labelRect = labelElement.getBoundingClientRect();
+        const labelX = labelRect.left + labelRect.width / 2;
+        const labelY = labelRect.bottom;
+
+        const worldScreen = worldToScreenPos(die.x, die.y, die.z, camera);
+
+        return {
+            index: die.index,
+            startX: labelX,
+            startY: labelY,
+            endX: worldScreen.x,
+            endY: worldScreen.y,
+            color: DIE_COLORS[die.type] || '#ffffff',
+        };
+    }).filter(Boolean);
 }
 
 
@@ -121,72 +207,154 @@ export default function DiceResultsPanel() {
     // todo: Improve the stats and more properly split out the d20 results.
     // Todo: probably move "add" out from dicetypecounts
     // Todo: this could use more optimization for > 20 mode.(to skip the sort and screen calculations)
+    // useEffect(() => {
+    //     if (!renderer || !camera || !controls || !world) return;
+    //
+    //     function updateSortedDiceAndLines() {
+    //         console.log("updating dice");
+    //         let total = 0;
+    //         let d20Total = 0;
+    //         let dieData = [];
+    //
+    //         dice_results.forEach((die, i) => {
+    //             if (!die) return;
+    //
+    //             const [result, type, x, y, z] = die;
+    //             const screen = worldToScreenPos(x, y, z, camera);
+    //
+    //             const dieInfo = {
+    //                 result,
+    //                 type,
+    //                 screen,
+    //                 index: i,
+    //                 x,
+    //                 y,
+    //                 z,
+    //             };
+    //
+    //             dieData.push(dieInfo);
+    //
+    //             if (type !== "d20") {
+    //                 total += result;
+    //             } else {
+    //                 d20Total += result;
+    //             }
+    //         });
+    //
+    //         setFinalTotal(total);
+    //         setFinald20Total(d20Total)
+    //
+    //         if (!dieData.length) {
+    //             setSortedDice([]);
+    //             setLines([]);
+    //             return;
+    //         }
+    //
+    //         // Group by die result value
+    //         const grouped = {};
+    //         dieData.forEach(d => {
+    //             if (!grouped[d.result]) grouped[d.result] = [];
+    //             grouped[d.result].push(d);
+    //         });
+    //
+    //         // Sort each group by screen.x
+    //         Object.values(grouped).forEach(group => {
+    //             group.sort((a, b) => a.screen.x - b.screen.x);
+    //         });
+    //
+    //         // Full sorted list
+    //         const sortedData = Object.keys(grouped)
+    //             .map(Number)
+    //             .sort((a, b) => a - b)
+    //             .flatMap(key => grouped[key]);
+    //
+    //         setSortedDice(sortedData);
+    //     }
+    //
+    //     controls.addEventListener('change', updateSortedDiceAndLines);
+    //     updateSortedDiceAndLines(); // run immediately
+    //
+    //     return () => {
+    //         controls.removeEventListener('change', updateSortedDiceAndLines);
+    //     };
+    // }, [dice_results, camera, renderer, world, controls, diceTypeCounts]);
+    //
+    // useEffect(() => {
+    //     if (!sortedDice.length) {
+    //         setLines([]);
+    //         return;
+    //     }
+    //
+    //     console.log("updating camera/dice");
+    //     if (sortedDice.length > 20) {
+    //         const buckets = {};
+    //
+    //         sortedDice.forEach(die => {
+    //             const key = `${die.result}`;
+    //             if (!buckets[key]) {
+    //                 buckets[key] = { count: 0, color: DIE_COLORS[die.type] || '#ffffff' };
+    //             }
+    //             buckets[key].count++;
+    //         });
+    //
+    //         const bucketSummaries = Object.keys(buckets)
+    //             .sort((a, b) => parseInt(a) - parseInt(b))
+    //             .map(key => ({
+    //                 index: key,
+    //                 value: key,
+    //                 count: buckets[key].count,
+    //                 color: buckets[key].color,
+    //             }));
+    //
+    //         setLines(bucketSummaries);
+    //         return;
+    //     }
+    //
+    //     const newLines = sortedDice.map(die => {
+    //         const labelElement = labelRefs.current[die.index];
+    //         if (!labelElement) return null;
+    //
+    //         const labelRect = labelElement.getBoundingClientRect();
+    //         const labelX = labelRect.left + labelRect.width / 2;
+    //         const labelY = labelRect.bottom;
+    //
+    //         const worldScreen = worldToScreenPos(die.x, die.y, die.z, camera);
+    //
+    //         return {
+    //             index: die.index,
+    //             startX: labelX,
+    //             startY: labelY,
+    //             endX: worldScreen.x,
+    //             endY: worldScreen.y,
+    //             color: DIE_COLORS[die.type] || '#ffffff',
+    //         };
+    //     }).filter(Boolean);
+    //
+    //     setLines(newLines);
+    // }, [sortedDice, camera]);
+
     useEffect(() => {
         if (!renderer || !camera || !controls || !world) return;
 
         function updateSortedDiceAndLines() {
-            let total = 0;
-            let d20Total = 0;
-            let dieData = [];
+            console.log("updating dice");
 
-            dice_results.forEach((die, i) => {
-                if (!die) return;
+            const { total, d20Total, sortedData } = processDiceResults(dice_results, camera);
 
-                const [result, type, x, y, z] = die;
-                const screen = worldToScreenPos(x, y, z, camera);
-
-                const dieInfo = {
-                    result,
-                    type,
-                    screen,
-                    index: i,
-                    x,
-                    y,
-                    z,
-                };
-
-                dieData.push(dieInfo);
-
-                if (type !== "d20") {
-                    total += result;
-                } else {
-                    d20Total += result;
-                }
-            });
-
-            //total += diceTypeCounts['add'];
             setFinalTotal(total);
-            setFinald20Total(d20Total)
+            setFinald20Total(d20Total);
 
-            if (!dieData.length) {
+            if (!sortedData.length) {
                 setSortedDice([]);
-                setLines([]);
+                //setLines([]);
                 return;
             }
-
-            // Group by die result value
-            const grouped = {};
-            dieData.forEach(d => {
-                if (!grouped[d.result]) grouped[d.result] = [];
-                grouped[d.result].push(d);
-            });
-
-            // Sort each group by screen.x
-            Object.values(grouped).forEach(group => {
-                group.sort((a, b) => a.screen.x - b.screen.x);
-            });
-
-            // Full sorted list
-            const sortedData = Object.keys(grouped)
-                .map(Number)
-                .sort((a, b) => a - b)
-                .flatMap(key => grouped[key]);
 
             setSortedDice(sortedData);
         }
 
         controls.addEventListener('change', updateSortedDiceAndLines);
-        updateSortedDiceAndLines(); // run immediately
+        updateSortedDiceAndLines();
 
         return () => {
             controls.removeEventListener('change', updateSortedDiceAndLines);
@@ -199,50 +367,9 @@ export default function DiceResultsPanel() {
             return;
         }
 
-        if (sortedDice.length > 20) {
-            const buckets = {};
+        console.log("updating camera/dice");
 
-            sortedDice.forEach(die => {
-                const key = `${die.result}`;
-                if (!buckets[key]) {
-                    buckets[key] = { count: 0, color: DIE_COLORS[die.type] || '#ffffff' };
-                }
-                buckets[key].count++;
-            });
-
-            const bucketSummaries = Object.keys(buckets)
-                .sort((a, b) => parseInt(a) - parseInt(b))
-                .map(key => ({
-                    index: key,
-                    value: key,
-                    count: buckets[key].count,
-                    color: buckets[key].color,
-                }));
-
-            setLines(bucketSummaries);
-            return;
-        }
-
-        const newLines = sortedDice.map(die => {
-            const labelElement = labelRefs.current[die.index];
-            if (!labelElement) return null;
-
-            const labelRect = labelElement.getBoundingClientRect();
-            const labelX = labelRect.left + labelRect.width / 2;
-            const labelY = labelRect.bottom;
-
-            const worldScreen = worldToScreenPos(die.x, die.y, die.z, camera);
-
-            return {
-                index: die.index,
-                startX: labelX,
-                startY: labelY,
-                endX: worldScreen.x,
-                endY: worldScreen.y,
-                color: DIE_COLORS[die.type] || '#ffffff',
-            };
-        }).filter(Boolean);
-
+        const newLines = buildLines(sortedDice, labelRefs, camera);
         setLines(newLines);
     }, [sortedDice, camera]);
 
@@ -276,41 +403,38 @@ export default function DiceResultsPanel() {
 
     const allDiceLanded = dice_results.every(die => die !== null);
 
-    function LabelBar({ sortedDice, labelRefs }) {
-        return (
-            <div id="labelBar">
-                {sortedDice.length > 20 ? (
-                    // Render summarized buckets if too many dice
-                    lines.map(bucket => (
-                        <div
-                            key={bucket.value}
-                            className="die-label"
-                            style={{
-                                backgroundColor: bucket.color,
-                                border: '2px solid white',
-                                color: '#000',
-                            }}
-                        >
-                            {bucket.count}×{bucket.value}
-                        </div>
-                    ))
-                ) : (
-                    // Render individual dice if few enough
-                    sortedDice.map(die => (
-                        <div
-                            key={die.index}
-                            className="die-label"
-                            style={getDieStyle(die.type)}
-                            ref={el => (labelRefs.current[die.index] = el)}
-                        >
-                            {die.result}
-                        </div>
-                    ))
-                )}
-            </div>
-        );
-    }
+    function LabelBar({ sortedDice, labelRefs, lines }) {
+        const labelElements = useMemo(() => {
+            if (sortedDice.length > 20) {
+                return lines.map(bucket => (
+                    <div
+                        key={bucket.value}
+                        className="die-label"
+                        style={{
+                            backgroundColor: bucket.color,
+                            border: '2px solid white',
+                            color: '#000',
+                        }}
+                    >
+                        {bucket.count}×{bucket.value}
+                    </div>
+                ));
+            } else {
+                return sortedDice.map(die => (
+                    <div
+                        key={die.index}
+                        className="die-label"
+                        style={getDieStyle(die.type)}
+                        ref={el => (labelRefs.current[die.index] = el)}
+                    >
+                        {die.result}
+                    </div>
+                ));
+            }
+        }, [sortedDice, lines, labelRefs]);
 
+        return <div id="labelBar">{labelElements}</div>;
+    }
     function ConnectionLines({ lines }) {
         if (!lines.length) return null;
 
@@ -341,7 +465,7 @@ export default function DiceResultsPanel() {
         );
     }
 
-    function ResultPanel({ finalTotal, diceTypeCounts }) {
+    function ResultPanel({ finalTotal, diceTypeCounts, allDiceLanded, luckPercentile, finald20Total, luckPercentiled20 }) {
         return (
             <div id="dice-results-panel">
                 <div
@@ -367,8 +491,15 @@ export default function DiceResultsPanel() {
     return (
         <>
             <div id="topBar">
-                <LabelBar sortedDice={sortedDice} labelRefs={labelRefs} />
-                <ResultPanel finalTotal={finalTotal} diceTypeCounts={diceTypeCounts} />
+                <LabelBar sortedDice={sortedDice} labelRefs={labelRefs} lines={lines}/>
+                <ResultPanel
+                    finalTotal={finalTotal}
+                    diceTypeCounts={diceTypeCounts}
+                    allDiceLanded={allDiceLanded}
+                    luckPercentile={luckPercentile}
+                    finald20Total={finald20Total}
+                    luckPercentiled20={luckPercentiled20}
+                />
             </div>
 
             <ConnectionLines lines={lines} />

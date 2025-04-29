@@ -4,7 +4,7 @@ import DiceCountContext from './DiceCountContext.js';
 import * as THREE from 'three';
 import GlobalContext from "./GlobalConext.js";
 import { useDiceResults } from './DiceResultsProvider.jsx';
-import DiceControls from "./DiceControls.jsx";
+import TabbedMenu from "./controls_menu.jsx";
 
 
 const clock = new THREE.Clock();
@@ -47,6 +47,7 @@ export default function Game_loop() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            // todo: this is too hacky
             setDiceResults(dice_results);
         }
 
@@ -58,7 +59,7 @@ export default function Game_loop() {
     }, [camera, renderer]);
 
     useEffect(() => {
-        console.log('debugMode updated:', debugMode);
+        // console.log('debugMode updated:', debugMode);
         world.dice.forEach(d => {
             d.physics.debugMesh.visible = debugMode;
         });
@@ -130,7 +131,7 @@ export default function Game_loop() {
 
     return (
         <div>
-        <DiceControls onRequestReset={() => setResetRequested(true)} />
+        <TabbedMenu onRequestReset={() => setResetRequested(true)} />
         <div
             id="canvas-container"
             ref={canvasRef}
