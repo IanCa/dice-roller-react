@@ -13,15 +13,15 @@
 #controls {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
 }
 
 .control-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 4px;
     justify-content: center;
-    padding: 4px 0;
+    padding: 2px 0;
     flex-wrap: wrap;
 }
 
@@ -181,17 +181,6 @@
     display: none;
 }
 
-/* Optional: adjust on smaller screens */
-/*@media (max-width: 767px) {*/
-/*    .popup {*/
-/*        font-size: 25px;*/
-/*        max-width: 90vw;*/
-/*        white-space: normal;*/
-/*        left: 0;*/
-/*        right: auto;*/
-/*    }*/
-/*}*/
-
 @media (max-width: 767px) {
     #controls-wrapper {
         padding: 6px; /* was 12px */
@@ -199,11 +188,11 @@
     }
 
     #controls {
-        gap: 6px; /* was 10px */
+        gap: 5px; /* was 10px */
     }
 
     .control-row {
-        gap: 6px;        /* was 16px */
+        gap: 4px;        /* was 16px */
         padding: 2px 0;  /* was 4px 0 */
     }
 
@@ -222,6 +211,7 @@
         font-size: 18px; /* was 24px */
         width: 28px;
         height: 28px;
+        border-radius: 4px;
     }
 
     #presets {

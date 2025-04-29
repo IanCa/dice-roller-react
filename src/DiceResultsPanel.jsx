@@ -29,13 +29,14 @@ function calculateLuckPercentile({
                                      diceTotalsMemoRef,
                                      filterFn,
                                  }) {
-    if (!diceResults.some(die => die !== null)) return 0;
+    if (!diceResults.some(die => die !== null)) return undefined;
 
     const landedDiceTypes = diceResults
         .filter(d => d && filterFn(d))
         .map(d => d[1])
         .sort();
 
+    if (landedDiceTypes.length == 0) return undefined;
     const { types: memoTypes, totals: memoTotals } = diceTotalsMemoRef.current;
 
     let newDiceTypes = [];
@@ -104,6 +105,7 @@ function calculateLuckPercentile({
 
     if (totalCombinations === 0n) return 0;
 
+    // todo: This math is not safe with large numbers(normal dice counts are fine)
     const rawPercent = (betterOrEqualResults * 10000n) / totalCombinations;
     return (Number(rawPercent) / 100).toFixed(2);
 }
@@ -207,138 +209,11 @@ export default function DiceResultsPanel() {
     // todo: Improve the stats and more properly split out the d20 results.
     // Todo: probably move "add" out from dicetypecounts
     // Todo: this could use more optimization for > 20 mode.(to skip the sort and screen calculations)
-    // useEffect(() => {
-    //     if (!renderer || !camera || !controls || !world) return;
-    //
-    //     function updateSortedDiceAndLines() {
-    //         console.log("updating dice");
-    //         let total = 0;
-    //         let d20Total = 0;
-    //         let dieData = [];
-    //
-    //         dice_results.forEach((die, i) => {
-    //             if (!die) return;
-    //
-    //             const [result, type, x, y, z] = die;
-    //             const screen = worldToScreenPos(x, y, z, camera);
-    //
-    //             const dieInfo = {
-    //                 result,
-    //                 type,
-    //                 screen,
-    //                 index: i,
-    //                 x,
-    //                 y,
-    //                 z,
-    //             };
-    //
-    //             dieData.push(dieInfo);
-    //
-    //             if (type !== "d20") {
-    //                 total += result;
-    //             } else {
-    //                 d20Total += result;
-    //             }
-    //         });
-    //
-    //         setFinalTotal(total);
-    //         setFinald20Total(d20Total)
-    //
-    //         if (!dieData.length) {
-    //             setSortedDice([]);
-    //             setLines([]);
-    //             return;
-    //         }
-    //
-    //         // Group by die result value
-    //         const grouped = {};
-    //         dieData.forEach(d => {
-    //             if (!grouped[d.result]) grouped[d.result] = [];
-    //             grouped[d.result].push(d);
-    //         });
-    //
-    //         // Sort each group by screen.x
-    //         Object.values(grouped).forEach(group => {
-    //             group.sort((a, b) => a.screen.x - b.screen.x);
-    //         });
-    //
-    //         // Full sorted list
-    //         const sortedData = Object.keys(grouped)
-    //             .map(Number)
-    //             .sort((a, b) => a - b)
-    //             .flatMap(key => grouped[key]);
-    //
-    //         setSortedDice(sortedData);
-    //     }
-    //
-    //     controls.addEventListener('change', updateSortedDiceAndLines);
-    //     updateSortedDiceAndLines(); // run immediately
-    //
-    //     return () => {
-    //         controls.removeEventListener('change', updateSortedDiceAndLines);
-    //     };
-    // }, [dice_results, camera, renderer, world, controls, diceTypeCounts]);
-    //
-    // useEffect(() => {
-    //     if (!sortedDice.length) {
-    //         setLines([]);
-    //         return;
-    //     }
-    //
-    //     console.log("updating camera/dice");
-    //     if (sortedDice.length > 20) {
-    //         const buckets = {};
-    //
-    //         sortedDice.forEach(die => {
-    //             const key = `${die.result}`;
-    //             if (!buckets[key]) {
-    //                 buckets[key] = { count: 0, color: DIE_COLORS[die.type] || '#ffffff' };
-    //             }
-    //             buckets[key].count++;
-    //         });
-    //
-    //         const bucketSummaries = Object.keys(buckets)
-    //             .sort((a, b) => parseInt(a) - parseInt(b))
-    //             .map(key => ({
-    //                 index: key,
-    //                 value: key,
-    //                 count: buckets[key].count,
-    //                 color: buckets[key].color,
-    //             }));
-    //
-    //         setLines(bucketSummaries);
-    //         return;
-    //     }
-    //
-    //     const newLines = sortedDice.map(die => {
-    //         const labelElement = labelRefs.current[die.index];
-    //         if (!labelElement) return null;
-    //
-    //         const labelRect = labelElement.getBoundingClientRect();
-    //         const labelX = labelRect.left + labelRect.width / 2;
-    //         const labelY = labelRect.bottom;
-    //
-    //         const worldScreen = worldToScreenPos(die.x, die.y, die.z, camera);
-    //
-    //         return {
-    //             index: die.index,
-    //             startX: labelX,
-    //             startY: labelY,
-    //             endX: worldScreen.x,
-    //             endY: worldScreen.y,
-    //             color: DIE_COLORS[die.type] || '#ffffff',
-    //         };
-    //     }).filter(Boolean);
-    //
-    //     setLines(newLines);
-    // }, [sortedDice, camera]);
-
     useEffect(() => {
         if (!renderer || !camera || !controls || !world) return;
 
         function updateSortedDiceAndLines() {
             console.log("updating dice");
-
             const { total, d20Total, sortedData } = processDiceResults(dice_results, camera);
 
             setFinalTotal(total);
@@ -359,7 +234,7 @@ export default function DiceResultsPanel() {
         return () => {
             controls.removeEventListener('change', updateSortedDiceAndLines);
         };
-    }, [dice_results, camera, renderer, world, controls, diceTypeCounts]);
+    }, [dice_results, camera, renderer, world, controls]);
 
     useEffect(() => {
         if (!sortedDice.length) {
@@ -401,7 +276,7 @@ export default function DiceResultsPanel() {
         });
     }, [dice_results, finald20Total]);
 
-    const allDiceLanded = dice_results.every(die => die !== null);
+    const allDiceLanded = dice_results.length > 0 && dice_results.every(die => die !== null);
 
     function LabelBar({ sortedDice, labelRefs, lines }) {
         const labelElements = useMemo(() => {
@@ -465,7 +340,7 @@ export default function DiceResultsPanel() {
         );
     }
 
-    function ResultPanel({ finalTotal, diceTypeCounts, allDiceLanded, luckPercentile, finald20Total, luckPercentiled20 }) {
+    function ResultPanel({ finalTotal, diceTypeCounts, allDiceLanded, luckPercentile, luckPercentiled20 }) {
         return (
             <div id="dice-results-panel">
                 <div
@@ -473,15 +348,15 @@ export default function DiceResultsPanel() {
                 >
                     Result: {finalTotal} + {diceTypeCounts['add'] || 0} = {Number(finalTotal) + Number(diceTypeCounts['add'] || 0)}
                 </div>
-                {finalTotal > 0 && (
+                {luckPercentile !== undefined && (
                     <div className="luck-panel">
                         Beats: {luckPercentile}%
                     </div>
                 )}
 
-                {finald20Total > 0 && (
+                {luckPercentiled20 !== undefined && (
                     <div className="luck-panel">
-                        D20 Beats: {luckPercentiled20}%
+                        Beats: {luckPercentiled20}%
                     </div>
                 )}
             </div>

@@ -56,7 +56,7 @@ export default function Game_loop() {
         return () => {
             window.removeEventListener('resize', handleResize);
         };
-    }, [camera, renderer]);
+    }, [camera, renderer, dice_results]);
 
     useEffect(() => {
         // console.log('debugMode updated:', debugMode);
