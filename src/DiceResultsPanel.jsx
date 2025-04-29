@@ -356,7 +356,7 @@ export default function DiceResultsPanel() {
 
                 {luckPercentiled20 !== undefined && (
                     <div className="luck-panel">
-                        Beats: {luckPercentiled20}%
+                        D20 Beats: {luckPercentiled20}%
                     </div>
                 )}
             </div>
