@@ -5,6 +5,7 @@ import GlobalContext from "./GlobalConext.js";
 import * as THREE from "three";
 import "./DiceResultsPanel.css";
 import DiceCountContext from "./DiceCountContext.js";
+import {generateDndDiceNotation} from "./dnd_notation.js";
 
 function getDieStyle(type) {
     const isD20 = type === 'd20';
@@ -36,7 +37,7 @@ function calculateLuckPercentile({
         .map(d => d[1])
         .sort();
 
-    if (landedDiceTypes.length == 0) return undefined;
+    if (landedDiceTypes.length === 0) return undefined;
     const { types: memoTypes, totals: memoTotals } = diceTotalsMemoRef.current;
 
     let newDiceTypes = [];
@@ -131,24 +132,33 @@ function processDiceResults(dice_results, camera) {
         })
         .filter(Boolean);
 
+    // Separate into non-d20 and d20 arrays
+    const nonD20Dice = dieData.filter(d => d.type !== "d20");
+    const d20Dice = dieData.filter(d => d.type === "d20");
+
+    // Group non-d20 dice by result
     const grouped = {};
-    dieData.forEach(d => {
+    nonD20Dice.forEach(d => {
         if (!grouped[d.result]) grouped[d.result] = [];
         grouped[d.result].push(d);
     });
 
+    // Sort each non-d20 group by screen.x
     Object.values(grouped).forEach(group => {
         group.sort((a, b) => a.screen.x - b.screen.x);
     });
 
-    const sortedData = Object.keys(grouped)
+    // Build final sorted array
+    const sortedNonD20Data = Object.keys(grouped)
         .map(Number)
         .sort((a, b) => a - b)
         .flatMap(key => grouped[key]);
 
+    // Final sortedData = non-d20 sorted + d20 raw
+    const sortedData = [...sortedNonD20Data, ...d20Dice];
+
     return { total, d20Total, sortedData };
 }
-
 
 function buildLines(sortedDice, labelRefs, camera) {
     if (!sortedDice.length) return [];
@@ -197,7 +207,7 @@ function buildLines(sortedDice, labelRefs, camera) {
 
 
 export default function DiceResultsPanel() {
-    const { dice_results } = useDiceResults();
+    const { dice_results, activeDiceTypeCounts } = useDiceResults();
     const { camera, renderer, world, controls } = useContext(GlobalContext);
     const labelRefs = useRef([]); // refs for each label
     const [lines, setLines] = useState([]);
@@ -278,6 +288,33 @@ export default function DiceResultsPanel() {
 
     const allDiceLanded = dice_results.length > 0 && dice_results.every(die => die !== null);
 
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        const dice_notation = generateDndDiceNotation(activeDiceTypeCounts);
+        const seedParam = activeDiceTypeCounts.seedState
+            ? `&seedState=${encodeURIComponent(JSON.stringify(activeDiceTypeCounts.seedState))}`
+            : '';
+        const hash = `#?dice=${dice_notation}${seedParam}`;
+        const fullUrl = `${window.location.origin}${window.location.pathname}${hash}`;
+
+        navigator.clipboard.writeText(fullUrl);
+
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    // useEffect(() => {
+    //     if (!copied) return;
+    //
+    //     const handleClickOutside = () => setCopied(false);
+    //     document.addEventListener('click', handleClickOutside);
+    //
+    //     return () => {
+    //         document.removeEventListener('click', handleClickOutside);
+    //     };
+    // }, [copied]);
+
     function LabelBar({ sortedDice, labelRefs, lines }) {
         const labelElements = useMemo(() => {
             if (sortedDice.length > 20) {
@@ -343,6 +380,13 @@ export default function DiceResultsPanel() {
     function ResultPanel({ finalTotal, diceTypeCounts, allDiceLanded, luckPercentile, luckPercentiled20 }) {
         return (
             <div id="dice-results-panel">
+                <button onClick={handleCopy}>📋</button>
+                {copied && (
+                    <div className="popup" style={{ position: 'absolute', top: '-1.5em', left: '0' }}>
+                        Copied reproducible url
+                    </div>
+                )}
+
                 <div
                     className={`result-panel ${allDiceLanded ? 'result-complete' : ''}`}
                 >
@@ -366,7 +410,6 @@ export default function DiceResultsPanel() {
     return (
         <>
             <div id="topBar">
-                <LabelBar sortedDice={sortedDice} labelRefs={labelRefs} lines={lines}/>
                 <ResultPanel
                     finalTotal={finalTotal}
                     diceTypeCounts={diceTypeCounts}
@@ -375,6 +418,7 @@ export default function DiceResultsPanel() {
                     finald20Total={finald20Total}
                     luckPercentiled20={luckPercentiled20}
                 />
+                <LabelBar sortedDice={sortedDice} labelRefs={labelRefs} lines={lines}/>
             </div>
 
             <ConnectionLines lines={lines} />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import DiceControls from "./DiceControls.jsx";
 import "./controls_menu.css";
 
-export default function TabbedMenu({ onRequestReset }) {
+export default function TabbedMenu() {
     const [activeTab, setActiveTab] = useState('controls');
 
     function handleTabClick(tabName) {
@@ -16,7 +16,7 @@ export default function TabbedMenu({ onRequestReset }) {
         <div className="tabbed-menu-container">
             {activeTab === 'controls' && (
                 <div className="tab-content">
-                    <DiceControls onRequestReset={onRequestReset} />
+                    <DiceControls />
                 </div>
             )}
 

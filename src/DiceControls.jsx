@@ -17,8 +17,8 @@ const presets = [
     { label: '1000', d8: 0, d6: 1000, d10: 0, d12: 0, d20: 0, d4: 0 },
 ];
 
-export default function DiceControls({ onRequestReset }) {
-    const { diceTypeCounts, setDiceTypeCounts } = useContext(DiceCountContext);
+export default function DiceControls() {
+    const { diceTypeCounts, setDiceTypeCounts, setResetRequested } = useContext(DiceCountContext);
 
     const changeCount = (type, delta) => {
         if (!diceTypeCounts.hasOwnProperty(type)) return;
@@ -99,7 +99,7 @@ export default function DiceControls({ onRequestReset }) {
                         <button className="control-button" onClick={() => changeCount(type, 1)}>+</button>
                     </div>
                 ))}
-                <button id="resetButton" onClick={onRequestReset}>🎲 Roll</button>
+                <button id="resetButton" onClick={() => setResetRequested(1)}>🎲 Roll</button>
             </div>
 
             <div id="presets">

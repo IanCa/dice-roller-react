@@ -1,6 +1,7 @@
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import DiceCountContext from './DiceCountContext';
-import { useLocation } from 'react-router-dom';
+import {useLocation} from 'react-router-dom';
+import {parseDndDiceNotation} from "./dnd_notation.js";
 
 const baseDiceDefaults = {
     d4: 0,
@@ -12,88 +13,48 @@ const baseDiceDefaults = {
     add: 0
 };
 
-function parseDndDiceNotation(notation) {
-    const validDice = new Set(["d4", "d6", "d8", "d10", "d12", "d20"]);
-    const result = {};
-    const pattern = /([+-]?\d*)d(\d+)|([+-]?\d+)/gi;
-    let match;
-    while ((match = pattern.exec(notation)) !== null) {
-        if (match[1] !== undefined && match[2] !== undefined) {
-            // Dice term
-            const dieType = `d${match[2]}`;
-            if (!validDice.has(dieType)) continue; // skip invalid dice
-
-            const count = parseInt(match[1]) || (match[1] === "-" ? -1 : 1);
-            result[dieType] = (result[dieType] || 0) + count;
-        } else if (match[3] !== undefined) {
-            // Flat modifier
-            const value = parseInt(match[3]);
-            result["add"] = (result["add"] || 0) + value;
-        }
-    }
-
-    return result;
-}
-
-function generateDndDiceNotation(dice_counts) {
-    const parts = [];
-
-    for (const [key, count] of Object.entries(dice_counts)) {
-        if (key === "add") {
-            if (count !== 0) {
-                parts.push((count > 0 ? `+${count}` : `${count}`));
-            }
-        } else {
-            if (count !== 0) {
-                parts.push((count > 0 ? `+${count}${key}` : `${count}${key}`));
-            }
-        }
-    }
-
-    // Join and clean up leading +
-    let notation = parts.join('');
-    if (notation.startsWith('+')) {
-        notation = notation.slice(1);
-    }
-    return notation;
-}
-
 export default function DiceCountProvider({ children }) {
     const location = useLocation();
+    const [resetRequested, setResetRequested] = useState(0);
 
     function getDiceFromHash(hash) {
         const hashParams = new URLSearchParams(hash.slice(1));
         const dice_string = hashParams.get('dice');
+        const seedState = JSON.parse(decodeURIComponent(hashParams.get('seedState')));
         const parsedDice = parseDndDiceNotation(dice_string);
 
+        let result = null
+
         if (parsedDice && Object.values(parsedDice).some(val => val > 0)) {
-            return { ...baseDiceDefaults, ...parsedDice };
+            result = { ...baseDiceDefaults, ...parsedDice };
         } else {
-            return { ...baseDiceDefaults, d8: 2 };
+            result = { ...baseDiceDefaults, d8: 2 };
         }
+        if (seedState) {
+            result['seedState'] = seedState
+        }
+        return result
     }
-    const [diceTypeCounts, _setDiceTypeCounts] = useState(() => getDiceFromHash(window.location.hash));
+    const [diceTypeCounts, setDiceTypeCounts] = useState(() => getDiceFromHash(window.location.hash));
 
-    const [lastUpdateFromUrl, setLastUpdateFromUrl] = useState(false);
-
-    // wrapped setter
-    const setDiceTypeCounts = (newCounts) => {
-        setLastUpdateFromUrl(false); // manual updates set this false
-        newCounts = {...baseDiceDefaults, ...newCounts}
-        const dice_notation = generateDndDiceNotation(newCounts)
-
-        window.history.replaceState(null, '', `#?dice=${dice_notation}`);
-
-        _setDiceTypeCounts(newCounts);
-    };
+    const updateFromHash = useRef(false);
 
     useEffect(() => {
-        setLastUpdateFromUrl(true);
-        _setDiceTypeCounts(getDiceFromHash(location.hash));
+        const dice_counts = getDiceFromHash(location.hash);
+        updateFromHash.current = true;
+        setDiceTypeCounts(dice_counts);
     }, [location]);
 
+    useEffect(() => {
+        if (updateFromHash.current) {
+            updateFromHash.current = false;
+            setResetRequested(2);
+        }
+    }, [diceTypeCounts]);
+
+    const value = { diceTypeCounts, setDiceTypeCounts, resetRequested, setResetRequested};
     return (
-        <DiceCountContext.Provider value={{ diceTypeCounts, setDiceTypeCounts, lastUpdateFromUrl, setLastUpdateFromUrl }}>
+        <DiceCountContext.Provider value={value}>
             {children}
         </DiceCountContext.Provider>
     );

@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useContext, useState} from 'react';
-import { createDiceSet, detectDiceState } from './dice_shared'; // assuming diceTypeCounts is in same file
+import {setRandomSeedState} from "./random_state.js"
+import {createDiceSet, detectDiceState} from './dice_shared'; // assuming diceTypeCounts is in same file
 import DiceCountContext from './DiceCountContext.js';
 import * as THREE from 'three';
 import GlobalContext from "./GlobalConext.js";
@@ -10,9 +11,8 @@ import TabbedMenu from "./controls_menu.jsx";
 const clock = new THREE.Clock();
 
 export default function Game_loop() {
-    const [resetRequested, setResetRequested] = useState(false);
-    const { dice_results, setDiceResults } = useDiceResults();
-    const { lastUpdateFromUrl, setLastUpdateFromUrl, diceTypeCounts, setDiceTypeCounts } = useContext(DiceCountContext);
+    const { dice_results, setDiceResults, setActiveDiceTypeCounts } = useDiceResults();
+    const { diceTypeCounts, resetRequested, setResetRequested } = useContext(DiceCountContext);
     const { debugMode, setDebugMode } = useContext(GlobalContext);
     const { scene, camera, world, controls, renderer, diceMaterial} = useContext(GlobalContext);
 
@@ -23,9 +23,6 @@ export default function Game_loop() {
         if (canvasRef.current && !canvasRef.current.hasChildNodes()) {
             canvasRef.current.appendChild(renderer.domElement);
         }
-        // // Initial setup
-        // createDiceSet(diceTypeCounts, scene, world, diceMaterial, debugMode);
-        // //updateUI();
 
         frameRef.current = requestAnimationFrame(animate);
 
@@ -36,9 +33,21 @@ export default function Game_loop() {
 
     useEffect(() => {
         if (resetRequested) {
-            setDiceTypeCounts(diceTypeCountsRef.current);
-            setLastUpdateFromUrl(true);
-            setResetRequested(false);
+            const currentCounts = diceTypeCountsRef.current
+            let rngState;
+
+            if (resetRequested === 2 && currentCounts.seedState) {
+                rngState = setRandomSeedState(currentCounts.seedState);
+            } else {
+                rngState = setRandomSeedState();
+            }
+            setResetRequested(0);
+            setActiveDiceTypeCounts({
+                ...currentCounts,
+                seedState: rngState
+            });
+            createDiceSet(currentCounts, scene, world, diceMaterial, debugMode)
+
         }
     }, [resetRequested]);
 
@@ -69,12 +78,6 @@ export default function Game_loop() {
     //     console.log('dice_results updated:', dice_results);
     // }, [dice_results]);
 
-    useEffect(() => {
-        if (lastUpdateFromUrl) {
-            createDiceSet(diceTypeCounts, scene, world, diceMaterial, debugMode)
-        }
-    }, [diceTypeCounts, lastUpdateFromUrl]);
-
     const diceTypeCountsRef = useRef(diceTypeCounts);
 
     // keep ref updated
@@ -85,8 +88,7 @@ export default function Game_loop() {
     useEffect(() => {
         function handleKeyDown(e) {
             if (e.key.toLowerCase() === 'r') {
-                setDiceTypeCounts(diceTypeCountsRef.current); // Use ref for latest
-                setLastUpdateFromUrl(true);
+                setResetRequested(1);
             }
             if (e.key.toLowerCase() === 'd') {
                 setDebugMode(prev => !prev);
@@ -131,7 +133,7 @@ export default function Game_loop() {
 
     return (
         <div>
-        <TabbedMenu onRequestReset={() => setResetRequested(true)} />
+        <TabbedMenu />
         <div
             id="canvas-container"
             ref={canvasRef}

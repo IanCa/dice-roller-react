@@ -1,7 +1,7 @@
 import {diceTypes} from "./dice_types.js"
 import * as CANNON from "cannon-es";
-// import {debugMode, diceMaterial, scene, world} from "./globals.js";
 import * as THREE from "three";
+
 
 function createPhysicsDebugMesh(scene, body, color = 0xff0000) {
     const shape = body.shapes[0];

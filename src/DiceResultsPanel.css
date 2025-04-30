@@ -4,6 +4,7 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    flex-direction: column;
     gap: 10px;
     align-items: center;
     z-index: 11;
@@ -28,6 +29,13 @@
     padding: 4px 8px;
     border-radius: 4px;
     white-space: nowrap;
+}
+#dice-results-panel {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 .result-panel {
@@ -63,13 +71,31 @@
     font-weight: bold;
 }
 
-.result-panel,
-.result-complete,
-.luck-panel {
-    max-width: 100vw; /* <- Ensures they don't grow beyond the screen */
-    box-sizing: border-box; /* <- Important to respect padding inside width */
-    overflow-wrap: break-word; /* <- Break long words if needed */
+.popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 40px;
+    background: #333;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    max-width: 280px;
+    width: max-content;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    z-index: 30;
+    line-height: 1.4;
 }
+
+/* Was used when they shared a line with dice results*/
+/*.result-panel,*/
+/*.result-complete,*/
+/*.luck-panel {*/
+/*    max-width: 100vw; !* <- Ensures they don't grow beyond the screen *!*/
+/*    box-sizing: border-box; !* <- Important to respect padding inside width *!*/
+/*    overflow-wrap: break-word; !* <- Break long words if needed *!*/
+/*}*/
 
 
 @media (max-width: 767px) {
