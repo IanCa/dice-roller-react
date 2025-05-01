@@ -20,5 +20,5 @@ export default defineConfig ({
           })
       )
     },
-    plugins: [react()],
+    plugins: [react({ jsxDev: true })],
 });

@@ -304,17 +304,6 @@ export default function DiceResultsPanel() {
         setTimeout(() => setCopied(false), 1500);
     };
 
-    // useEffect(() => {
-    //     if (!copied) return;
-    //
-    //     const handleClickOutside = () => setCopied(false);
-    //     document.addEventListener('click', handleClickOutside);
-    //
-    //     return () => {
-    //         document.removeEventListener('click', handleClickOutside);
-    //     };
-    // }, [copied]);
-
     function LabelBar({ sortedDice, labelRefs, lines }) {
         const labelElements = useMemo(() => {
             if (sortedDice.length > 20) {
