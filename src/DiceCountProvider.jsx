@@ -64,7 +64,7 @@ export default function DiceCountProvider({ children }) {
         const total = Object.values(updated).reduce((sum, n) => sum + n, 0);
         const excess = total - MAX_DICE;
 
-        if (excess > 0) {
+        if (excess > 0 && type !== 'add') {
             let maxType = null;
             let maxCount = -Infinity;
             for (const t in updated) {

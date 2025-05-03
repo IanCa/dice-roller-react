@@ -5,13 +5,16 @@ import App from './App';
 import DiceCountProvider from './DiceCountProvider';
 import GlobalProvider from './GlobalProvider';
 import { BrowserRouter } from 'react-router-dom';
+import {DiceResultsProvider} from "./DiceResultsProvider.jsx";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
             <GlobalProvider>
                 <DiceCountProvider>
+                    <DiceResultsProvider>
                     <App />
+                    </DiceResultsProvider>
                 </DiceCountProvider>
             </GlobalProvider>
         </BrowserRouter>

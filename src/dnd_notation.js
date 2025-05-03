@@ -25,7 +25,7 @@ export function generateDndDiceNotation(dice_counts) {
     const parts = [];
 
     for (const [key, count] of Object.entries(dice_counts)) {
-        if (key === "seedState") continue;
+        if (key === "seedState" || key === "label") continue;
         if (key === "add") {
             if (count !== 0) {
                 parts.push((count > 0 ? `+${count}` : `${count}`));

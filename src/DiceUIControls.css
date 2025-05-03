@@ -1,6 +1,5 @@
-/* Controls (Reset + Dice Count) */
+/* Wrapper for dice controls and presets */
 #controls-wrapper {
-    position: static;
     display: flex;
     flex-direction: row;
     gap: 16px;
@@ -10,7 +9,8 @@
     flex-wrap: wrap;
 }
 
-#controls {
+/* Dice count control layout */
+#dice-controls {
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -27,17 +27,19 @@
 
 .control-label {
     font-size: 20px;
-    width: auto;
     min-width: 40px;
     color: white;
     text-align: right;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .count-display {
     font-size: 24px;
     width: 36px;
     height: 36px;
-
     text-align: center;
     color: white;
     font-weight: bold;
@@ -63,20 +65,79 @@
     background-color: #ddd;
 }
 
+/* Roll button */
+#resetButton {
+    background: white;
+    border: none;
+    font-size: 24px;
+    height: 72px;
+    padding: 0 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+/* Roll button */
+#saveResult {
+    background: white;
+    border: none;
+    font-size: 14px;
+    height: 30px;
+    padding: 0 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    #resetButton:hover {
+        background-color: #eee;
+    }
+    #saveResult:hover {
+        background-color: #eee;
+    }
+}
+
+/* Preset controls */
+#preset-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-content: center;
+    align-items: flex-start;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 12px;
+    border-radius: 10px;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+/* Presets list */
 #presets {
     display: flex;
     flex-direction: column;
-    gap: 6px; /* Slightly smaller vertical gap */
+    gap: 6px;
     justify-content: center;
-    max-height: 100%; /* Prevents it from growing too tall */
-    overflow: auto;   /* Allows scrolling if needed */
+    max-height: 100%;
+    overflow: auto;
+    width: 100%;
+}
+
+.preset-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .preset-button {
     background: #eee;
     border: none;
-    font-size: clamp(12px, 2vw, 16px); /* Responsive font size */
-    padding: 6px 10px;                 /* Smaller padding */
+    font-size: clamp(12px, 2vw, 16px);
+    padding: 6px 10px;
     border-radius: 6px;
     cursor: pointer;
     white-space: nowrap;
@@ -86,30 +147,29 @@
     user-select: none;
     touch-action: manipulation;
     box-sizing: border-box;
-    flex-shrink: 1; /* Allow to shrink if needed */
+    flex-shrink: 1;
 }
 
 .preset-button:active {
     background-color: #ccc;
 }
 
-#resetButton {
-    background: white;
+/* Delete preset button (optional feature) */
+.preset-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.delete-preset {
+    background: none;
     border: none;
-    font-size: 24px;
-    height: 72px;
-    padding: 0 24px; /* Horizontal padding only */
-    border-radius: 10px;
+    color: red;
+    font-size: 16px;
     cursor: pointer;
-    font-weight: bold;
-    user-select: none;
-    touch-action: manipulation;
+    padding: 2px 6px;
 }
 
-#resetButton:hover {
-    background-color: #eee;
-}
-
+/* Tooltip system */
 .tooltip-parent {
     position: relative;
     display: inline-flex;
@@ -119,9 +179,8 @@
 
 .tooltip {
     position: absolute;
-    top: -32px; /* appear above the row */
+    top: -32px;
     left: 50%;
-    transform: none;
     background-color: #222;
     color: #fff;
     padding: 6px 10px;
@@ -132,30 +191,25 @@
     pointer-events: none;
     transition: opacity 0.2s ease;
     z-index: 10;
+    transform: none;
 }
 
 .tooltip-parent:hover .tooltip {
     opacity: 1;
 }
+
+/* D10 explanation popup */
 .d10-details {
     position: relative;
     display: inline-block;
     max-width: 100%;
 }
 
-.control-label {
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
 .warning-icon {
     font-size: 14px;
-    color: #f39c12; /* nice bright warning color */
+    color: #f39c12;
 }
 
-/* Remove default marker from <summary> */
 .d10-details summary {
     list-style: none;
 }
@@ -176,57 +230,88 @@
     font-size: 13px;
     max-width: 280px;
     width: max-content;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     z-index: 30;
     line-height: 1.4;
 }
 
+.preset-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 0px;
+}
+
+.preset-actions .preset-button {
+    width: 100%;
+}
+
+/* Responsive */
 @media (max-width: 767px) {
     #controls-wrapper {
-        padding: 6px; /* was 12px */
-        gap: 6px;     /* was 16px */
+        padding: 6px;
+        gap: 6px;
     }
 
-    #controls {
-        gap: 5px; /* was 10px */
+    #dice-controls {
+        gap: 5px;
     }
 
     .control-row {
-        gap: 4px;        /* was 16px */
-        padding: 2px 0;  /* was 4px 0 */
+        gap: 4px;
+        padding: 2px 0;
     }
 
     .control-label {
-        font-size: 16px;   /* was 20px */
-        min-width: 30px;   /* was 40px */
+        font-size: 16px;
+        min-width: 30px;
     }
 
     .count-display {
-        font-size: 18px; /* was 24px */
-        width: 28px;     /* was 36px */
+        font-size: 18px;
+        width: 28px;
         height: 28px;
     }
 
     .control-button {
-        font-size: 18px; /* was 24px */
+        font-size: 18px;
         width: 28px;
         height: 28px;
         border-radius: 4px;
     }
 
-    #presets {
-        gap: 4px; /* was 6px */
-    }
-
     .preset-button {
-        font-size: 12px; /* was clamp(12px, 2vw, 16px), clamp can stay or fix */
-        min-width: 80px; /* was 100px */
-        padding: 4px 8px; /* was 6px 10px */
+        font-size: 12px;
+        min-width: 80px;
+        padding: 2px 4px;
     }
 
     #resetButton {
-        font-size: 18px; /* was 24px */
-        height: 48px;    /* was 72px */
-        padding: 0 16px; /* was 0 24px */
+        font-size: 18px;
+        height: 48px;
+        padding: 0 16px;
+    }
+    #saveResult {
+        font-size: 14px;
+        height: 24px;
+        padding: 0 16px;
+    }
+
+    #preset-controls {
+        gap: 8px;
+    }
+
+    #preset-controls button {
+        font-size: 12px;
+        padding: 2px 4px;
+    }
+
+    .preset-row {
+        gap: 0px;
+    }
+    .delete-preset {
+        font-size: 16px;
+        cursor: pointer;
+        padding: 2px 6px;
     }
 }

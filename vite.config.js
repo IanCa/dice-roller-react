@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 
 // vite.config.js
 export default defineConfig ({
-  base: '/dice-roller-react/',
+  // base: '/dice-roller-react/',
+    base: './',
   server: {
     open: true,
     sourcemap: true

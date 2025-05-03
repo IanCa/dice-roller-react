@@ -5,7 +5,8 @@ import GlobalContext from "./GlobalConext.js";
 import * as THREE from "three";
 import "./DiceResultsPanel.css";
 import DiceCountContext from "./DiceCountContext.js";
-import {generateDndDiceNotation} from "./dnd_notation.js";
+
+const ALT_DISPLAY_CUTOFF = 20;
 
 function getDieStyle(type) {
     const isD20 = type === 'd20';
@@ -163,7 +164,7 @@ function processDiceResults(dice_results, camera) {
 function buildLines(sortedDice, labelRefs, camera) {
     if (!sortedDice.length) return [];
 
-    if (sortedDice.length > 20) {
+    if (sortedDice.length > ALT_DISPLAY_CUTOFF) {
         const buckets = {};
 
         sortedDice.forEach(die => {
@@ -207,7 +208,7 @@ function buildLines(sortedDice, labelRefs, camera) {
 
 
 export default function DiceResultsPanel() {
-    const { dice_results, activeDiceTypeCounts } = useDiceResults();
+    const { dice_results, allDiceSet } = useDiceResults();
     const { camera, renderer, world, controls } = useContext(GlobalContext);
     const labelRefs = useRef([]); // refs for each label
     const [lines, setLines] = useState([]);
@@ -215,6 +216,35 @@ export default function DiceResultsPanel() {
     const [finalTotal, setFinalTotal] = useState(0);
     const [finald20Total, setFinald20Total] = useState(0);
     const {diceTypeCounts} = useContext(DiceCountContext);
+    const [diceFrequencyFrames, setDiceFrequencyFrames] = useState([]);
+
+    useEffect(() => {
+        if (allDiceSet) {
+            const values = dice_results
+                .filter(die => die != null)
+                .map(die => die[0]);
+
+            const freqMap = {};
+            for (const val of values) {
+                freqMap[val] = (freqMap[val] || 0) + 1;
+            }
+
+            setDiceFrequencyFrames(prev => {
+                const updated = [...prev, freqMap];
+
+                const totalFreq = {};
+                for (const frame of updated) {
+                    for (const [key, count] of Object.entries(frame)) {
+                        totalFreq[key] = (totalFreq[key] || 0) + count;
+                    }
+                }
+
+                console.log("Total frequency map:", totalFreq);
+                return updated;
+            });
+        }
+    }, [allDiceSet]);
+
 
     // todo: Improve the stats and more properly split out the d20 results.
     // Todo: probably move "add" out from dicetypecounts
@@ -223,11 +253,16 @@ export default function DiceResultsPanel() {
         if (!renderer || !camera || !controls || !world) return;
 
         function updateSortedDiceAndLines() {
-            console.log("updating dice");
+            // console.log("updating dice");
             const { total, d20Total, sortedData } = processDiceResults(dice_results, camera);
 
-            setFinalTotal(total);
-            setFinald20Total(d20Total);
+            if (sortedData.length > ALT_DISPLAY_CUTOFF) {
+                setFinalTotal(total + d20Total);
+                setFinald20Total(0);
+            } else {
+                setFinalTotal(total);
+                setFinald20Total(d20Total);
+            }
 
             if (!sortedData.length) {
                 setSortedDice([]);
@@ -252,7 +287,7 @@ export default function DiceResultsPanel() {
             return;
         }
 
-        console.log("updating camera/dice");
+        // console.log("updating camera/dice");
 
         const newLines = buildLines(sortedDice, labelRefs, camera);
         setLines(newLines);
@@ -268,45 +303,33 @@ export default function DiceResultsPanel() {
         totals: { 0: 1n }
     });
 
+
+    // Only calculate d20 separately if under 20 dice.  Also make sure it's included over 20 dice.
     const luckPercentile = useMemo(() => {
+        const useAlt = dice_results.length > ALT_DISPLAY_CUTOFF;
         return calculateLuckPercentile({
             diceResults: dice_results,
             finalTotal: finalTotal,
             diceTotalsMemoRef: diceTotalsMemo,
-            filterFn: (d) => d[1] !== 'd20', // Exclude d20
+            filterFn: useAlt
+                ? () => true
+                : (d) => d[1] !== 'd20',
         });
-    }, [dice_results, finalTotal]);
+    }, [dice_results, finalTotal, finald20Total]);
 
     const luckPercentiled20 = useMemo(() => {
+        if (dice_results.length > ALT_DISPLAY_CUTOFF) return undefined;
         return calculateLuckPercentile({
             diceResults: dice_results,
             finalTotal: finald20Total,
             diceTotalsMemoRef: diceTotalsMemod20,
-            filterFn: (d) => d[1] === 'd20', // Only d20
+            filterFn: (d) => d[1] === 'd20',
         });
     }, [dice_results, finald20Total]);
 
-    const allDiceLanded = dice_results.length > 0 && dice_results.every(die => die !== null);
-
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = () => {
-        const dice_notation = generateDndDiceNotation(activeDiceTypeCounts);
-        const seedParam = activeDiceTypeCounts.seedState
-            ? `&seedState=${encodeURIComponent(JSON.stringify(activeDiceTypeCounts.seedState))}`
-            : '';
-        const hash = `#?dice=${dice_notation}${seedParam}`;
-        const fullUrl = `${window.location.origin}${window.location.pathname}${hash}`;
-
-        navigator.clipboard.writeText(fullUrl);
-
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-    };
-
     function LabelBar({ sortedDice, labelRefs, lines }) {
         const labelElements = useMemo(() => {
-            if (sortedDice.length > 20) {
+            if (sortedDice.length > ALT_DISPLAY_CUTOFF) {
                 return lines.map(bucket => (
                     <div
                         key={bucket.value}
@@ -366,19 +389,10 @@ export default function DiceResultsPanel() {
         );
     }
 
-    function ResultPanel({ finalTotal, diceTypeCounts, allDiceLanded, luckPercentile, luckPercentiled20 }) {
+    function ResultPanel() {
         return (
             <div id="dice-results-panel">
-                <button onClick={handleCopy}>📋</button>
-                {copied && (
-                    <div className="popup" style={{ position: 'absolute', top: '-1.5em', left: '0' }}>
-                        Copied reproducible url
-                    </div>
-                )}
-
-                <div
-                    className={`result-panel ${allDiceLanded ? 'result-complete' : ''}`}
-                >
+                <div className={`result-panel ${allDiceSet ? 'result-complete' : ''}`}>
                     Result: {finalTotal} + {diceTypeCounts['add'] || 0} = {Number(finalTotal) + Number(diceTypeCounts['add'] || 0)}
                 </div>
                 {luckPercentile !== undefined && (
@@ -400,12 +414,6 @@ export default function DiceResultsPanel() {
         <>
             <div id="topBar">
                 <ResultPanel
-                    finalTotal={finalTotal}
-                    diceTypeCounts={diceTypeCounts}
-                    allDiceLanded={allDiceLanded}
-                    luckPercentile={luckPercentile}
-                    finald20Total={finald20Total}
-                    luckPercentiled20={luckPercentiled20}
                 />
                 <LabelBar sortedDice={sortedDice} labelRefs={labelRefs} lines={lines}/>
             </div>

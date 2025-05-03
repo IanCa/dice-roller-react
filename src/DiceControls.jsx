@@ -1,56 +1,87 @@
-import React, {useContext, useEffect} from 'react';
-import "./DiceControls.css";
-import DiceCountContext from './DiceCountContext.js';
-import DiceControlRow from './DiceControlRow.jsx';
-const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+import React, {useContext, useState} from 'react';
+import DiceCountContext from './DiceCountContext';
+import DiceControlRow from './DiceControlRow';
+import "./DiceUIControls.css";
+import {generateDndDiceNotation} from "./dnd_notation.js";
+import DiceResultsContext from "./DiceResultsContext.js";
 
-const presets = [
-    { label: '1d20', d8: 0, d6: 0, d10: 0, d12: 0, d20: 1, d4: 0 },
-    { label: '2d20', d8: 0, d6: 0, d10: 0, d12: 0, d20: 2, d4: 0 },
-    { label: 'Fireball', d8: 0, d6: 8, d10: 0, d12: 0, d20: 0, d4: 0 },
-    { label: '+Smite 1', d8: 2, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
-    { label: '+Smite 2', d8: 3, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
-    { label: '+Smite 3', d8: 4, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0, additive: true },
-    { label: 'Max Demo', d8: 10, d6: 10, d10: 0, d12: 0, d20: 0, d4: 0 },
-    { label: '1000', d8: 0, d6: 1000, d10: 0, d12: 0, d20: 0, d4: 0 },
-    { label: 'Clear', d8: 0, d6: 0, d10: 0, d12: 0, d20: 0, d4: 0 },
-];
+const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'add'];
 
 export default function DiceControls() {
-    const { diceTypeCounts, setDiceTypeCounts, setResetRequested } = useContext(DiceCountContext);
+    const { setResetRequested } = useContext(DiceCountContext);
+    const { activeDiceTypeCounts } = useContext(DiceResultsContext);
+    const [copied, setCopied] = useState(false);
 
-    const setDiceCounts = (preset, additive = false) => {
-        const newCounts = additive ? { ...diceTypeCounts } : { d4: 0, d6: 0, d8: 0, d10: 0, d12: 0, d20: 0 };
+    const handleCopy = () => {
+        const dice_notation = generateDndDiceNotation(activeDiceTypeCounts);
+        const seedParam = activeDiceTypeCounts.seedState
+            ? `&seedState=${encodeURIComponent(JSON.stringify(activeDiceTypeCounts.seedState))}`
+            : '';
+        const hash = `#?dice=${dice_notation}${seedParam}`;
+        const fullUrl = `${window.location.origin}${window.location.pathname}${hash}`;
 
-        newCounts.d4 += preset.d4 || 0;
-        newCounts.d6 += preset.d6 || 0;
-        newCounts.d8 += preset.d8 || 0;
-        newCounts.d10 += preset.d10 || 0;
-        newCounts.d12 += preset.d12 || 0;
-        newCounts.d20 += preset.d20 || 0;
-
-        setDiceTypeCounts(newCounts);
+        // Modern async clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(fullUrl)
+                .then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => {
+                    fallbackCopy(fullUrl);
+                });
+        } else {
+            fallbackCopy(fullUrl);
+        }
     };
+
+    // Needed for ios for some reason.
+    function fallbackCopy(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            const successful = document.execCommand("copy");
+            if (successful) {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+            } else {
+                alert("Copy failed. Please copy manually.");
+            }
+        } catch {
+            alert("Copy command not supported.");
+        }
+
+        document.body.removeChild(textArea);
+    }
 
     return (
         <div id="controls-wrapper">
-            <div id="controls">
+            <div id="dice-controls">
                 {diceTypes.map(type => (
                     <DiceControlRow key={type} type={type} />
                 ))}
-                <button id="resetButton" onClick={() => setResetRequested(1)}>🎲 Roll</button>
-            </div>
 
-            <div id="presets">
-                {presets.map((preset, index) => (
-                    <button
-                        key={index}
-                        className="preset-button"
-                        onClick={() => setDiceCounts(preset, preset.additive ?? false)}
-                    >
-                        {preset.label}
-                    </button>
-                ))}
+                <button
+                    id="saveResult"
+                    type="button"
+                    onClick={handleCopy}
+                    aria-label="Copy"
+                >
+                    Save Result
+                </button>
+                {copied && (
+                    <div className="popup" style={{ position: 'absolute', top: '-1.5em', left: '0' }}>
+                        Copied reproducible url
+                    </div>
+                )}
+
+                <button id="resetButton" onClick={() => setResetRequested(1)}>🎲 Roll</button>
             </div>
         </div>
     );

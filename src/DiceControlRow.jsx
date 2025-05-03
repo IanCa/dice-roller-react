@@ -31,7 +31,7 @@ export default function DiceControlRow({ type }) {
                     </div>
                 </details>
             ) : (
-                <span className="control-label">{type.toUpperCase()}:</span>
+                <span className="control-label">{type.charAt(0).toUpperCase() + type.slice(1)}:</span>
             )}
 
             <button className="control-button" onClick={() => changeCount(type, -1)}>−</button>

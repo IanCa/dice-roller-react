@@ -1,11 +1,11 @@
 import React, {useEffect, useRef, useContext, useState} from 'react';
-import {setRandomSeedState} from "./random_state.js"
-import {createDiceSet, detectDiceState} from './dice_shared'; // assuming diceTypeCounts is in same file
+import {initializeRNG} from "./random_state.js"
+import {createDiceSet, detectDiceState} from './dice_shared';
 import DiceCountContext from './DiceCountContext.js';
 import * as THREE from 'three';
 import GlobalContext from "./GlobalConext.js";
 import { useDiceResults } from './DiceResultsProvider.jsx';
-import TabbedMenu from "./controls_menu.jsx";
+import TabbedMenu from "./TabbedMenu.jsx";
 
 
 const clock = new THREE.Clock();
@@ -37,9 +37,9 @@ export default function Game_loop() {
             let rngState;
 
             if (resetRequested === 2 && currentCounts.seedState) {
-                rngState = setRandomSeedState(currentCounts.seedState);
+                rngState = initializeRNG(currentCounts.seedState);
             } else {
-                rngState = setRandomSeedState();
+                rngState = initializeRNG();
             }
             setResetRequested(0);
             setActiveDiceTypeCounts({

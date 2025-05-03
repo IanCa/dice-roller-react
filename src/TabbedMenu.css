@@ -7,8 +7,17 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-end;
+    height: 100%; /* or 100vh */
     padding: 0px;
-    gap: 10px;
+    gap: 0px;
+}
+
+.tab-contents {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0px;
+    pointer-events: none;
 }
 
 .tab-buttons {
@@ -21,14 +30,18 @@
     background-color: #444;
     color: white;
     padding: 8px 12px;
-    border: none;
+    min-width: 90px;
+    border: 1px solid transparent;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
+
 }
 
-.tab-buttons button:hover {
-    background-color: #666;
+@media (hover: hover) and (pointer: fine) {
+    .tab-buttons button:hover {
+        background-color: #666;
+    }
 }
 
 .tab-content {
@@ -39,4 +52,10 @@
     color: white;
     pointer-events: auto;
     max-width: 600px;
+}
+
+.tab-buttons button.active-tab {
+    background-color: #666;
+    font-weight: bold;
+    border: 1px solid #aaa;
 }

@@ -245,7 +245,7 @@ export function detectDiceState(world) {
 
         const velocity = d.physics.body.velocity.length();
         const angular = d.physics.body.angularVelocity.length();
-        if (velocity > 0.05 || angular > 0.05) {
+        if (velocity > 0.02 || angular > 0.02) {
             dice_results[i] = d.result
         } else if (d.result === null) {
             dice_results[i] = [diceTypes[d.type].getTopFaceIndex(d.physics.body.quaternion, diceTypes[d.type].geometry) + 1, d.type, d.physics.body.position.x, d.physics.body.position.y, d.physics.body.position.z]
