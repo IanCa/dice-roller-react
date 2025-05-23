@@ -5,9 +5,7 @@ import "./DiceUIControls.css";
 import {generateDndDiceNotation} from "./dnd_notation.js";
 import DiceResultsContext from "./DiceResultsContext.js";
 
-const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'add'];
-
-export default function DiceControls() {
+export default function DiceControls({diceTypes}) {
     const { setResetRequested } = useContext(DiceCountContext);
     const { activeDiceTypeCounts } = useContext(DiceResultsContext);
     const [copied, setCopied] = useState(false);

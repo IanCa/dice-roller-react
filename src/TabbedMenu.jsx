@@ -33,9 +33,10 @@ export default function TabbedMenu() {
             <div className="tab-contents">
                 {openTabs.has('controls') && (
                     <div className="tab-content">
-                        <DiceControls />
+                        <DiceControls diceTypes={['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'add']}/>
                     </div>
                 )}
+
 
                 {openTabs.has('presets') && (
                     <div className="tab-content">

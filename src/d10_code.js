@@ -7,6 +7,10 @@ import {
 
 const D10_SCALE = 0.7;
 
+// This entire file is a nightmare that needs improvement
+const faceOrder = [1, 7, 3, 5, 9,
+                            4, 10, 8, 2, 6];
+
 export function createNumberedD10AtlasTexture() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -23,18 +27,22 @@ export function createNumberedD10AtlasTexture() {
 
         // Digit
         ctx.fillStyle = '#000';
-        ctx.font = 'bold 48px sans-serif';
+        ctx.font = 'bold 42px sans-serif'; // Smaller than 48px
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(number.toString(), x + 64, 64);
+
+        // Shift up by ~5% of 128px = ~6.4px
+        const yCenter = 64 - 6;
+
+        ctx.fillText(number.toString(), x + 64, yCenter);
 
         // Underline for 6 and 9
         if (number === 6 || number === 9) {
             const underlineWidth = 40;
             const underlineHeight = 4;
 
-            // Draw underline just below the text, centered
-            const underlineY = 64 + 36; // Slightly below the text (was 64 + 32)
+            // Adjust underline to match new text position
+            const underlineY = yCenter + 15; // Smaller font = tighter underline offset
 
             ctx.fillRect(
                 x + 64 - underlineWidth / 2,
@@ -47,101 +55,110 @@ export function createNumberedD10AtlasTexture() {
 
     return new THREE.CanvasTexture(canvas);
 }
-
 export function createNumberedD10Geometry() {
     const geometry = new THREE.BufferGeometry();
+
+    const radius = D10_SCALE;
+    const zOffset = radius * 0.10;
 
     const verts = [];
     const faces = [];
 
-    const radius = D10_SCALE;
-    const top = new THREE.Vector3(0, radius, 0);
-    const bottom = new THREE.Vector3(0, -radius, 0);
+    const angleStep = (2 * Math.PI) / 10;
 
-    const angleStep = Math.PI * 2 / 5;
-
-    // Create 5 equator vertices in a regular pentagon
-    for (let i = 0; i < 5; i++) {
+    // Create 10 alternating-height equator vertices
+    for (let i = 0; i < 10; i++) {
         const angle = i * angleStep;
-        verts.push(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        const z = (i % 2 === 0) ? zOffset : -zOffset;
+        verts.push(new THREE.Vector3(x, z, y)); // Y-up
     }
 
-    verts.push(top);    // index 5
-    verts.push(bottom); // index 6
+    const topIndex = verts.length;
+    verts.push(new THREE.Vector3(0, radius, 0)); // Top pole
 
-    // 🔁 Reversed winding order for correct facing
-    for (let i = 0; i < 5; i++) {
-        const next = (i + 1) % 5;
-        faces.push([next, i, 5]); // Top pole triangle — reversed
+    const bottomIndex = verts.length;
+    verts.push(new THREE.Vector3(0, -radius, 0)); // Bottom pole
+
+    // Create 20 triangle faces (10 kites = 2 triangles each)
+    for (let i = 0; i < 10; i++) {
+        const a = i;
+        const b = (i + 1) % 10;
+        faces.push([topIndex, b, a]);
     }
 
-    for (let i = 0; i < 5; i++) {
-        const next = (i + 1) % 5;
-        faces.push([i, next, 6]); // Bottom pole triangle — reversed
+    for (let i = 0; i < 10; i++) {
+        const a = (i + 1) % 10;
+        const b = (i + 2) % 10;
+        faces.push([bottomIndex, a, b]);
     }
 
+    // === Build geometry
     const positions = [];
     const uvs = [];
     const tileWidth = 1 / 10;
 
-    for (let i = 0; i < faces.length; i++) {
-        const [aIdx, bIdx, cIdx] = faces[i];
-        const a = verts[aIdx];
-        const b = verts[bIdx];
-        const c = verts[cIdx];
+    for (let i = 0; i < 20; i += 2) {
+        const triA = faces[i];
+        const triB = faces[(i + 1) % 20]; // wraps 19 → 0
 
-        positions.push(a.x, a.y, a.z);
-        positions.push(b.x, b.y, b.z);
-        positions.push(c.x, c.y, c.z);
+        const a1 = verts[triA[1]];
+        const b1 = verts[triA[2]];
+        const pole = verts[triA[0]];
 
-        // Project triangle to 2D for texture mapping
-        const faceCenter = new THREE.Vector3().addVectors(a, b).add(c).divideScalar(3);
-        const ab = new THREE.Vector3().subVectors(b, a);
-        const ac = new THREE.Vector3().subVectors(c, a);
-        const normal = new THREE.Vector3().crossVectors(ab, ac).normalize();
+        const a2 = verts[triB[1]];
+        const b2 = verts[triB[2]];
 
-        const faceY = new THREE.Vector3(0, 1, 0);
-        if (Math.abs(normal.dot(faceY)) > 0.99) faceY.set(1, 0, 0);
+        const kiteVerts = [pole, a1, b1, a2, b2];
+        const center = kiteVerts.reduce((acc, v) => acc.add(v.clone()), new THREE.Vector3()).divideScalar(kiteVerts.length);
 
-        const xAxis = new THREE.Vector3().crossVectors(faceY, normal).normalize();
+        const baseVec = new THREE.Vector3().subVectors(b1, a1);
+        const sideVec = new THREE.Vector3().subVectors(pole, a1);
+        const normal = new THREE.Vector3().crossVectors(baseVec, sideVec).normalize();
+
+        const fallback = Math.abs(normal.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+        const xAxis = new THREE.Vector3().crossVectors(fallback, normal).normalize();
         const yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
 
-        const toUV = (v) => {
-            const p = new THREE.Vector3().subVectors(v, faceCenter);
+        const project = (v) => {
+            const offset = new THREE.Vector3().subVectors(v, center);
             return {
-                u: p.dot(xAxis),
-                v: p.dot(yAxis)
+                u: offset.dot(xAxis),
+                v: offset.dot(yAxis)
             };
         };
 
-        let uvA = toUV(a), uvB = toUV(b), uvC = toUV(c);
+        const uvRaw = kiteVerts.map(project);
+        const maxRange = Math.max(...uvRaw.flatMap(uv => [Math.abs(uv.u), Math.abs(uv.v)])) || 1;
 
-        const maxRange = Math.max(
-            Math.abs(uvA.u), Math.abs(uvA.v),
-            Math.abs(uvB.u), Math.abs(uvB.v),
-            Math.abs(uvC.u), Math.abs(uvC.v)
-        ) || 1;
+        const kiteIndex = faceOrder[i / 2] - 1;
+        const shouldFlip = i / 2  >= 5;
+        const tileOffset = kiteIndex * tileWidth;
 
-        const tileOffsetU = i * tileWidth;
-
-        const shouldRotate180 = (i >= 5); // faces 5–9 (digits 6–10)
-
-        const packUV = (uv) => {
-            let u = (uv.u / maxRange / 2 + 0.5);
-            let v = (uv.v / maxRange / 2 + 0.5);
-
-            if (shouldRotate180) {
+        const mapUV = (uv) => {
+            let u = uv.u / maxRange / 2 + 0.5;
+            let v = uv.v / maxRange / 2 + 0.5;
+            if (shouldFlip) {
                 u = 1 - u;
                 v = 1 - v;
             }
-
-            return [
-                tileOffsetU + u * tileWidth,
-                v
-            ];
+            return [tileOffset + u * tileWidth, v];
         };
 
-        uvs.push(...packUV(uvA), ...packUV(uvB), ...packUV(uvC));
+        const [uvPole, uvA1, uvB1, uvA2, uvB2] = uvRaw.map(mapUV);
+
+        // Triangle 1: pole → a1 → b1
+        positions.push(pole.x, pole.y, pole.z);
+        positions.push(a1.x, a1.y, a1.z);
+        positions.push(b1.x, b1.y, b1.z);
+        uvs.push(...uvPole, ...uvA1, ...uvB1);
+
+        // Triangle 2: pole → a2 → b2
+        positions.push(pole.x, pole.y, pole.z);
+        positions.push(a2.x, a2.y, a2.z);
+        positions.push(b2.x, b2.y, b2.z);
+        uvs.push(...uvPole, ...uvA2, ...uvB2);
     }
 
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -153,48 +170,50 @@ export function createNumberedD10Geometry() {
 
 export function createPhysicsD10Shape() {
     const radius = D10_SCALE;
-    const numEquatorVerts = 5;
+    const numFaces = 10;
+    const zOffset = radius * 0.1;
 
     const verts = [];
-
-    // Rotate vector -90° around X-axis to convert Z-up to Y-up
-    const rotateX90 = (v) => {
-        return new CANNON.Vec3(v.x, -v.z, v.y);
-    };
-
-    // Top and bottom poles (aligned with Z axis originally, now aligned with Y)
-    verts.push(rotateX90(new CANNON.Vec3(0, 0, radius)));  // Vertex 0 (Top pole)
-    verts.push(rotateX90(new CANNON.Vec3(0, 0, -radius))); // Vertex 1 (Bottom pole)
-
-    // Equator vertices arranged in a regular pentagon around Z axis, rotated
-    for (let i = 0; i < numEquatorVerts; i++) {
-        const angle = (i / numEquatorVerts) * Math.PI * 2;
-        const x = radius * Math.cos(angle);
-        const y = radius * Math.sin(angle);
-        const z = 0;
-        verts.push(rotateX90(new CANNON.Vec3(x, y, z))); // Vertices 2 to 6
-    }
-
     const faces = [];
 
-    // Faces from top pole to equator
-    for (let i = 0; i < numEquatorVerts; i++) {
-        const a = 0;  // top pole
-        const b = 2 + i;
-        const c = 2 + ((i + 1) % numEquatorVerts);
-        faces.push([a, b, c]);
+    const rotateX90 = (v) => new CANNON.Vec3(v.x, -v.z, v.y);
+    const vec3 = (x, y, z) => new CANNON.Vec3(x, y, z);
+
+    // === Step 1: Add top and bottom poles
+    const topPoleIndex = verts.length;
+    verts.push(rotateX90(vec3(0, 0, radius)));
+
+    const bottomPoleIndex = verts.length;
+    verts.push(rotateX90(vec3(0, 0, -radius)));
+
+    // === Step 2: Add 10 equator vertices around a circle, alternating Z
+    const equatorIndices = [];
+    for (let i = 0; i < numFaces; i++) {
+        const angle = (i / numFaces) * Math.PI * 2 + Math.PI * 2 / 10;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        const z = (i % 2 === 0) ? zOffset : -zOffset;
+        const index = verts.length;
+        verts.push(rotateX90(vec3(x, y, z)));
+        equatorIndices.push(index);
     }
 
-    // Faces from bottom pole to equator
-    for (let i = 0; i < numEquatorVerts; i++) {
-        const a = 1;  // bottom pole
-        const b = 2 + ((i + 1) % numEquatorVerts);
-        const c = 2 + i;
-        faces.push([a, b, c]);
+    for (let i = 0; i < numFaces; i++) {
+        const a = equatorIndices[i];
+        const b = equatorIndices[(i + 1) % numFaces];
+        faces.push([topPoleIndex, a, b]);
     }
 
-    return new CANNON.ConvexPolyhedron({vertices: verts, faces: faces});
+    // Bottom faces after
+    for (let i = 0; i < numFaces; i++) {
+        const a = equatorIndices[(i + 1) % numFaces];
+        const b = equatorIndices[(i + 2) % numFaces];
+        faces.push([bottomPoleIndex, b, a]);
+    }
+
+    return new CANNON.ConvexPolyhedron({ vertices: verts, faces: faces });
 }
+
 
 export function getTopFaceIndexForD10(quat, dice_geometry) {
     const up = new THREE.Vector3(0, 1, 0);
@@ -216,22 +235,15 @@ export function getTopFaceIndexForD10(quat, dice_geometry) {
         const worldNormal = normal.clone().applyQuaternion(q);
         const dot = worldNormal.dot(up);
 
-        faceNormals.push({index: i / 3, dot});
+        faceNormals.push({ triangleIndex: i / 3, dot });
     }
 
-    // Sort faces by how upward-facing they are
+    // Sort faces by upward-facing strength
     faceNormals.sort((a, b) => b.dot - a.dot);
 
-    // Get top 2 candidates
-    const topTwo = faceNormals.slice(0, 2);
+    // Pick the most upward triangle
+    const topTri = faceNormals[0].triangleIndex;
+    const kiteIndex = faceOrder[Math.floor(topTri / 2)] - 1;
 
-    // Threshold for similarity (adjust as needed)
-    const threshold = 0.01;
-
-    // If the difference is small, pick randomly
-    const chosen = (topTwo[0].dot - topTwo[1].dot < threshold)
-        ? (Math.random() < 0.5 ? topTwo[0] : topTwo[1])
-        : topTwo[0]; // Otherwise, go with the most upward-facing
-
-    return chosen.index;
+    return kiteIndex;
 }
